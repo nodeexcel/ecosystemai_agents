@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Union
+from typing import Union, Optional, Literal
 
 class Sequence(BaseModel):
     trigger: str
@@ -20,12 +20,31 @@ class AppointmentSetterSchema(BaseModel):
     your_business_offer: str =  Field(min_length=50)
     qualification_questions: list[str]
     sequence: Sequence
-    objective_of_the_agent: list[str]
-    calendar_choosed: str
+    objective_of_the_agent: Optional[str]
+    calendar_choosed: Optional[str] = "calendly"
+    webpage_link: Optional[str]
+    webpage_type: Optional[str]
     reply_min_time: int
     reply_max_time: int
     is_followups_enabled: bool = False
     follow_up_details: FollowUPConfig
     emoji_frequency: int
     directness: int
+    
+class UpdateAppointmentSetterSchema(BaseModel):
+    agent_name: Optional[str] = None
+    agent_personality: Optional[str] = None
+    agent_language: Optional[str] = None
+    business_description: Optional[str] = Field(min_length=50)
+    your_business_offer: Optional[str] =  Field(min_length=50)
+    qualification_questions: Optional[list[str]] = None
+    sequence: Optional[Sequence] = None
+    objective_of_the_agent: Optional[list[str]]
+    calendar_choosed: Optional[str]
+    reply_min_time: Optional[int]
+    reply_max_time: Optional[int]
+    is_followups_enabled: Optional[bool] = False
+    follow_up_details: FollowUPConfig
+    emoji_frequency: Optional[int]
+    directness: Optional[int]
     
