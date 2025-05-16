@@ -35,16 +35,21 @@ class UpdateAppointmentSetterSchema(BaseModel):
     agent_name: Optional[str] = None
     agent_personality: Optional[str] = None
     agent_language: Optional[str] = None
-    business_description: Optional[str] = Field(min_length=50)
-    your_business_offer: Optional[str] =  Field(min_length=50)
+    business_description: Optional[str] = Field(default=None, min_length=50)
+    your_business_offer: Optional[str] =  Field(default=None, min_length=50)
     qualification_questions: Optional[list[str]] = None
     sequence: Optional[Sequence] = None
-    objective_of_the_agent: Optional[list[str]]
-    calendar_choosed: Optional[str]
-    reply_min_time: Optional[int]
-    reply_max_time: Optional[int]
-    is_followups_enabled: Optional[bool] = False
-    follow_up_details: FollowUPConfig
-    emoji_frequency: Optional[int]
-    directness: Optional[int]
+    objective_of_the_agent: Optional[str] = None
+    calendar_choosed: Optional[str] = None
+    webpage_link: Optional[str] = None
+    webpage_type: Optional[str] = None
+    reply_min_time: Optional[int] = None
+    reply_max_time: Optional[int] = None
+    is_followups_enabled: Optional[bool] = None
+    follow_up_details: Optional[FollowUPConfig] = None
+    emoji_frequency: Optional[int] = None
+    directness: Optional[int] = None
+    
+class ChatWithAgent(BaseModel):
+    message: str
     
