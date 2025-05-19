@@ -1,6 +1,7 @@
 import os, datetime, uuid
 from sqlalchemy import Column, Boolean, Integer, String, Float, ARRAY, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
@@ -126,6 +127,23 @@ class AppointmentSetter(Base):
     is_active = Column(Boolean, default=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     
+class AppointmentAgentLeads(Base):
+    __tablename__ = "appointment_agent_leads"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    lead_id = Column(String, unique=True)
+    
+class LeadAnalytics(Base):
+    __tablename__ = "lead_analytics"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    chat_history = Column(MutableList.as_mutable(ARRAY(JSONB)), default=[])
+    thread_id = Column(String, unique=True)
+    agent_id = Column(Integer, ForeignKey("appointment_setter.id"))
+    lead_id = Column(Integer, ForeignKey("appointment_agent_leads.id"))
+    agent_is_enabled = Column(Boolean, default=True)
+    status = Column(String, nullable=True)
+     
 class KnowledgeBase(Base):
     __tablename__ = "knowledge_base"
     

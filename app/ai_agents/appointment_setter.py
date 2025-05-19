@@ -34,7 +34,7 @@ class AppointmentAgentResponse(BaseModel):
     response: str
     lead_qualification_status: Optional[str] = Field(description="status determined by agent only needed when agent is sure")
     
-def initialise_agent(prompt, user_query):
+def initialise_agent(prompt):
     model = init_chat_model(
         "openai:gpt-4o",
         temperature=0,
@@ -50,13 +50,13 @@ def initialise_agent(prompt, user_query):
     
     return appointment_agent
 
-def message_reply_by_agent(appointment_agent, user_query):
+def message_reply_by_agent(appointment_agent, user_query, thread_id):
     
-    config = {"configurable": {"thread_id": "101"}}
+    config = {"configurable": {"thread_id": thread_id}}
     response = appointment_agent.invoke({"messages": [{"role": "user", "content": user_query}]},
                                         config=config)
-    structured_response= response["structured_response"]
     ai_response = response["messages"][-1].content
+    ai_response = json.loads(ai_response)
     
     return ai_response
 
