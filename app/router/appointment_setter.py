@@ -68,8 +68,6 @@ def get_appointment_setter_agent_details(agent_id, db: Session = Depends(get_db)
             'calendar_choosed': agent.calendar_choosed,
             'webpage_link': agent.webpage_link,
             'webpage_type': agent.webpage_type,
-            'reply_min_time': agent.reply_min_time,
-            'reply_max_time': agent.reply_max_time,
             'is_followups_enabled': agent.is_followups_enabled,
             'follow_up_details': agent.follow_up_details,
             'emoji_frequency': agent.emoji_frequency,
@@ -126,7 +124,7 @@ def chatting_with_agent(agent_id, payload: ChatWithAgent, db: Session = Depends(
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
-    lead = db.query(AppointmentAgentLeads).filter_by(lead_id=str(user_id)).first()
+    lead = db.query(AppointmentAgentLeads).filter_by(lead_id=user_id).first()
     if not lead:
         lead = AppointmentAgentLeads(lead_id=user_id)
         db.add(lead)
@@ -135,15 +133,14 @@ def chatting_with_agent(agent_id, payload: ChatWithAgent, db: Session = Depends(
     agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
     if not agent:
         return JSONResponse(content={'error': 'Not authorized to talk this agent'}, status_code=404)
-    lead_chat = db.query(LeadAnalytics).filter_by(lead_id=user_id, agent_id=agent_id).first()
+    lead_chat = db.query(LeadAnalytics).filter_by(lead_id=lead.id, agent_id=agent_id).first()
     chat_history = {}
     chat_history['user'] = payload.message
     if not lead_chat:
         thread_id = uuid.uuid4()
-        lead_chat = LeadAnalytics(lead_id=user_id, agent_id=agent_id, thread_id=thread_id)
+        lead_chat = LeadAnalytics(lead_id=lead.id, agent_id=agent_id, thread_id=thread_id)
         db.add(lead_chat)
         db.commit()
-        db.refresh(lead_chat)
     if lead_chat:
         thread_id = lead_chat.thread_id
         db.commit()
@@ -152,7 +149,8 @@ def chatting_with_agent(agent_id, payload: ChatWithAgent, db: Session = Depends(
     lead_chat.chat_history = chat
     db.commit()
     knowledge_base = db.query(KnowledgeBase).filter_by(id=user_id).first()
-    knowledge_base = knowledge_base.data
+    if knowledge_base:
+        knowledge_base = knowledge_base.data
     prompt = Prompts.appointment_setter_prompt(agent, knowledge_base)
     appointment_agent = initialise_agent(prompt)
     ai_message = message_reply_by_agent(appointment_agent, payload.message, thread_id)

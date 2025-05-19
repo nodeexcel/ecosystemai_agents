@@ -12,7 +12,7 @@ from app.models.get_db import get_db
 from app.models.model import User, KnowledgeBase
 from app.utils.user_auth import get_current_user
 from app.services.pinecone import pinecone_db
-from app.utils.knowledge_base import website_scrape
+from app.utils.knowledge_base import website_scrape, knowledge_base_embedding_and_storage
 
 router = APIRouter(tags=['knowledge_base'])
 
@@ -25,50 +25,19 @@ def embeddings_for_snippets(payload: Snippet, db: Session = Depends(get_db), use
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     if payload.data_type == 'snippet':
         snippet = payload.data
-
-        embedded_query = embeddings_model.embed_query(snippet)
         user_id = user.id
-        id = uuid.uuid4()
-        
-        index = pinecone_db.Index(name=os.getenv('PINECONEDB'))
-
-        index.upsert(
-            namespace = str(user_id),
-            vectors=[
-                {
-                    "id": str(id),
-                    "values": embedded_query,
-                    "metadata": {}, 
-                },
-            ]
-        )
-        
-        knowledge_base = KnowledgeBase(**payload.model_dump(), user_id=user_id)
+        knowledge_base_embedding_and_storage(embeddings_model, user_id, pinecone_db, snippet)
+        knowledge_base = KnowledgeBase(data_type='snippet', data=snippet, user_id=user_id)
         db.add(knowledge_base)
         db.commit()
-        db.refresh(knowledge_base)
+
     if payload.data_type=='website':
         website_data = website_scrape(payload.data)
-        embedded_query = embeddings_model.embed_query(website_data)
         user_id = user.id
-        id = uuid.uuid4()
-        
-        index = pinecone_db.Index(name=os.getenv('PINECONEDB'))
-
-        index.upsert(
-            namespace = str(user_id),
-            vectors=[
-                {
-                    "id": str(id),
-                    "values": embedded_query,
-                    "metadata": {}, 
-                },
-            ]
-        )
+        knowledge_base_embedding_and_storage(embeddings_model, user_id, pinecone_db, website_data)
         knowledge_base = KnowledgeBase(**payload.model_dump(), user_id=user_id)
         db.add(knowledge_base)
         db.commit()
-        db.refresh(knowledge_base)
     return JSONResponse({"success": "Your data is stored in BrainAI knowlwage base"}, status_code=200)
 
 @router.get('/snippets')
@@ -78,11 +47,14 @@ def get_snippets(db: Session = Depends(get_db), user_id: str = Depends(get_curre
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     snippets = db.query(KnowledgeBase).filter_by(data_type='snippet').all()
     info = []
-    data = {}
     for snippet in snippets:
-        data['text'] = snippet.data
-        info.append(data)
-    return JSONResponse({"snippets": info},status_code=200)
+        info.append(snippet.data)
+    websites = db.query(KnowledgeBase).filter_by(data_type='website').all()
+    website_urls = []
+    for website in websites:
+        website_urls.append(website.data)
+    return JSONResponse({"snippets": info, "website": website_urls},status_code=200)
+
 
 
         

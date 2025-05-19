@@ -37,6 +37,7 @@ class User(Base):
     subscriptionStatus = Column(String(50), nullable=True)
     subscriptionId = Column(String(100), nullable=True)
     refreshToken = Column(String(255), nullable=True)
+    isDeleted = Column(Boolean, default=False)
     otp = Column(String(6), nullable=True)
     subscriptionEndDate = Column(DateTime, nullable=True)
     subscriptionStartDate = Column(DateTime, nullable=True)
@@ -118,20 +119,18 @@ class AppointmentSetter(Base):
     calendar_choosed = Column(String, nullable=True)
     webpage_link = Column(String, nullable=True)
     webpage_type = Column(String, nullable=True)
-    reply_min_time = Column(Integer, nullable=False)
-    reply_max_time = Column(Integer, nullable=False)
     is_followups_enabled = Column(Boolean, default=False)
     follow_up_details = Column(JSONB, nullable=True)
     emoji_frequency = Column(Integer, nullable=False)
     directness = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     
 class AppointmentAgentLeads(Base):
     __tablename__ = "appointment_agent_leads"
     
     id = Column(Integer, primary_key=True, index=True)
-    lead_id = Column(String, unique=True)
+    lead_id = Column(Integer, unique=True)
     
 class LeadAnalytics(Base):
     __tablename__ = "lead_analytics"
@@ -139,8 +138,8 @@ class LeadAnalytics(Base):
     id = Column(Integer, primary_key=True, index=True)
     chat_history = Column(MutableList.as_mutable(ARRAY(JSONB)), default=[])
     thread_id = Column(String, unique=True)
-    agent_id = Column(Integer, ForeignKey("appointment_setter.id"))
-    lead_id = Column(Integer, ForeignKey("appointment_agent_leads.id"))
+    agent_id = Column(Integer, ForeignKey("appointment_setter.id", ondelete="SET NULL"))
+    lead_id = Column(Integer, ForeignKey("appointment_agent_leads.id", ondelete="SET NULL"))
     agent_is_enabled = Column(Boolean, default=True)
     status = Column(String, nullable=True)
      
@@ -150,4 +149,4 @@ class KnowledgeBase(Base):
     id = Column(Integer, primary_key=True, index=True)
     data = Column(String, nullable=True)
     data_type = Column(String)
-    user_id = Column(Integer, ForeignKey("users.id")) 
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE")) 

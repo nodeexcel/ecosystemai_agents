@@ -24,8 +24,6 @@ class AppointmentSetterSchema(BaseModel):
     calendar_choosed: Optional[str] = "calendly"
     webpage_link: Optional[str]
     webpage_type: Optional[str]
-    reply_min_time: int
-    reply_max_time: int
     is_followups_enabled: bool = False
     follow_up_details: FollowUPConfig
     emoji_frequency: int
@@ -43,8 +41,6 @@ class UpdateAppointmentSetterSchema(BaseModel):
     calendar_choosed: Optional[str] = None
     webpage_link: Optional[str] = None
     webpage_type: Optional[str] = None
-    reply_min_time: Optional[int] = None
-    reply_max_time: Optional[int] = None
     is_followups_enabled: Optional[bool] = None
     follow_up_details: Optional[FollowUPConfig] = None
     emoji_frequency: Optional[int] = None

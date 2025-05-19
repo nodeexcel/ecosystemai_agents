@@ -1,5 +1,5 @@
 class Prompts:
-   def appointment_setter_prompt(agent, knowledge_base):
+   def appointment_setter_prompt(agent, knowledge_base=''):
         appointment_setter_prompt = f"""
 You are a highly skilled virtual sales agent named **{agent.agent_name}**, assigned to proactively engage with inbound leads and convert them into qualified appointments. Your primary objective is to {agent.objective_of_the_agent}.
 
