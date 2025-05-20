@@ -1,5 +1,5 @@
 import os, datetime, uuid
-from sqlalchemy import Column, Boolean, Integer, String, Float, ARRAY, DateTime, ForeignKey
+from sqlalchemy import Column, Boolean, Integer, String, Float, ARRAY, DateTime, ForeignKey, Date
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy import create_engine
@@ -110,7 +110,9 @@ class AppointmentSetter(Base):
     id = Column(Integer, primary_key=True, index=True)
     agent_name = Column(String, nullable=False)
     agent_personality = Column(String, nullable=False)
-    agent_language = Column(String, default='English')
+    agent_language = Column(ARRAY(String))
+    gender = Column(String, default="male")
+    age = Column(Integer, nullable=False)
     business_description = Column(String, nullable=False)
     your_business_offer = Column(String, nullable=False)
     qualification_questions = Column(ARRAY(String), default=[])
@@ -118,11 +120,11 @@ class AppointmentSetter(Base):
     objective_of_the_agent = Column(String, nullable=False)
     calendar_choosed = Column(String, nullable=True)
     webpage_link = Column(String, nullable=True)
-    webpage_type = Column(String, nullable=True)
+    whatsapp_number = Column(String, nullable=True)
+    prompt = Column(String, nullable=False)
     is_followups_enabled = Column(Boolean, default=False)
     follow_up_details = Column(JSONB, nullable=True)
     emoji_frequency = Column(Integer, nullable=False)
-    directness = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     
@@ -142,6 +144,8 @@ class LeadAnalytics(Base):
     lead_id = Column(Integer, ForeignKey("appointment_agent_leads.id", ondelete="SET NULL"))
     agent_is_enabled = Column(Boolean, default=True)
     status = Column(String, nullable=True)
+    created_at = Column(Date, default=datetime.date.today())
+    updated_at = Column(Date)
      
 class KnowledgeBase(Base):
     __tablename__ = "knowledge_base"

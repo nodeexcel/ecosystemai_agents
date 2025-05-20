@@ -1,6 +1,9 @@
 import os, uuid
 from langchain_openai import ChatOpenAI
+from langchain_openai import OpenAIEmbeddings
+
 from app.ai_agents.prompts import Prompts
+from app.services.pinecone import pinecone_db
 
 llm = ChatOpenAI(
     model="gpt-4o",
@@ -18,7 +21,9 @@ def website_scrape(website_link):
     data = llm.invoke(messages)
     return data.content
 
-def knowledge_base_embedding_and_storage(embeddings_model, user_id, pinecone_db, data):
+embeddings_model = OpenAIEmbeddings(model="text-embedding-3-small")
+
+def knowledge_base_embedding_and_storage(user_id, data):
     embedded_query = embeddings_model.embed_query(data)
     user_id = user_id
     id = uuid.uuid4()
@@ -31,7 +36,27 @@ def knowledge_base_embedding_and_storage(embeddings_model, user_id, pinecone_db,
             {
                 "id": str(id),
                 "values": embedded_query,
-                "metadata": {}, 
+                "metadata": {"chunk_text": data}, 
             },
         ]
     )
+    
+def fetch_text(message, user_id):
+        index = pinecone_db.Index(name=os.getenv('PINECONEDB'))
+        
+        embedded_query = embeddings_model.embed_query(message)
+
+        results = index.query(
+            namespace=str(user_id), 
+            vector = embedded_query, 
+            top_k = 1,
+            include_metadata=True
+            )
+
+        data = results["matches"]
+        try:
+            metadata = data[1]
+            knowledge_base = metadata.get('chunk_text')
+            return knowledge_base
+        except:
+            return ""

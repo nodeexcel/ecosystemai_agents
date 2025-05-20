@@ -5,12 +5,15 @@ from fastapi.responses import JSONResponse
 
 from sqlalchemy.orm import Session
 
-from app.models.model import AppointmentSetter, User, KnowledgeBase, LeadAnalytics, AppointmentAgentLeads
+from app.models.model import (AppointmentSetter, User, LeadAnalytics,
+                            AppointmentAgentLeads, Team, TeamMember)
 from app.models.get_db import get_db 
-from app.schemas.appointment_setter import AppointmentSetterSchema, UpdateAppointmentSetterSchema, ChatWithAgent
+from app.schemas.appointment_setter import (AppointmentSetterSchema, UpdateAppointmentSetterSchema,
+                                            ChatWithAgent, LeadAnalyticsSchema)
 from app.utils.user_auth import get_current_user
 from app.ai_agents.prompts import Prompts
 from app.ai_agents.appointment_setter import initialise_agent, message_reply_by_agent
+from app.utils.knowledge_base import fetch_text
 
 router = APIRouter(tags=['appointment_agent'])
 
@@ -58,20 +61,22 @@ def get_appointment_setter_agent_details(agent_id, db: Session = Depends(get_db)
         agent_info = {
             'agent_id': agent.id,
             'agent_name': agent.agent_name,
+            'age': agent.age,
+            'gender': agent.gender,
+            'prompt': agent.prompt,
             'agent_personality': agent.agent_personality,
             'agent_language': agent.agent_language,
             'business_description': agent.business_description,
+            'whatsapp_number': agent.whatsapp_number,
             'your_business_offer': agent.your_business_offer,
             'qualification_questions': agent.qualification_questions,
             'sequence': agent.sequence,
             'objective_of_the_agent': agent.objective_of_the_agent,
             'calendar_choosed': agent.calendar_choosed,
             'webpage_link': agent.webpage_link,
-            'webpage_type': agent.webpage_type,
             'is_followups_enabled': agent.is_followups_enabled,
             'follow_up_details': agent.follow_up_details,
             'emoji_frequency': agent.emoji_frequency,
-            'directness': agent.directness
             }
         return JSONResponse(content={'agent': agent_info}, status_code=200)
     return JSONResponse(content={'error': 'Agent does not exist'}, status_code=404)
@@ -148,9 +153,7 @@ def chatting_with_agent(agent_id, payload: ChatWithAgent, db: Session = Depends(
     chat.append(chat_history)
     lead_chat.chat_history = chat
     db.commit()
-    knowledge_base = db.query(KnowledgeBase).filter_by(id=user_id).first()
-    if knowledge_base:
-        knowledge_base = knowledge_base.data
+    knowledge_base = fetch_text(payload.message, user_id)
     prompt = Prompts.appointment_setter_prompt(agent, knowledge_base)
     appointment_agent = initialise_agent(prompt)
     ai_message = message_reply_by_agent(appointment_agent, payload.message, thread_id)
@@ -190,6 +193,51 @@ def get_chat_history(chat_id, db: Session = Depends(get_db), user_id: str = Depe
     if chat:
         return JSONResponse(content={'success': chat.chat_history}, status_code=200)
     return JSONResponse(content={'error': 'No chat history'}, status_code=404)
+
+@router.get("/get-lead-analytics")
+def get_lead_analytics(lead_params: LeadAnalyticsSchema = Depends(), db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    positive = 0
+    negative = 0
+    engaged = 0
+    no_answer = 0
+    positive_rate = 0.00
+    responded_rate = 0.00
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    if lead_params.agent_id=='all':
+        team = db.query(Team).filter_by(userId=user_id).first()
+        if lead_params.agent_id=='all':
+            teammembers = db.query(TeamMember).filter_by(teamId=team.id).all()
+        else:
+            teammembers = db.query(TeamMember).filter_by(teamId=team.id).all()
+        for teammember in teammembers:
+            leads = (db.query(LeadAnalytics).join(AppointmentSetter, LeadAnalytics.agent_id == AppointmentSetter.id)
+                    .filter(AppointmentSetter.user_id == teammember.userId).all())
+            total_leads = (db.query(LeadAnalytics).join(AppointmentSetter, LeadAnalytics.agent_id == AppointmentSetter.id)
+                    .filter(AppointmentSetter.user_id == teammember.userId).count())
+    else:
+        agent_id = int(lead_params.agent_id)
+        leads = db.query(LeadAnalytics).filter_by(agent_id=agent_id).all()
+        total_leads = db.query(LeadAnalytics).filter_by(agent_id=agent_id).count()
+    for lead in leads:
+        if lead.status=="postive":
+            positive = positive+1
+        if lead.status=="negative":
+            negative=negative+1
+        if lead.status=="engaged":
+            engaged=engaged+1
+    if positive!=0 and total_leads!=0:
+        positive_rate = (positive/total_leads)*100
+    if total_leads!=0:
+        responded = positive+negative+engaged
+        responded_rate = (responded/total_leads*100)
+    return JSONResponse({"postive": positive, "negative": negative, "engaged": engaged
+                         , "positive_rate": positive_rate, "responded_rate": responded_rate},
+                    status_code=200)
         
+        
+        
+    
     
 

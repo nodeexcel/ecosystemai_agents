@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Union, Optional, Literal
+from datetime import date
 
 class Sequence(BaseModel):
     trigger: str
@@ -15,7 +16,11 @@ class FollowUPConfig(BaseModel):
 class AppointmentSetterSchema(BaseModel):
     agent_name: str
     agent_personality: str
-    agent_language: str
+    agent_language: list[str]
+    gender: str
+    age: int
+    prompt: str
+    whatsapp_number: str
     business_description: str = Field(min_length=50)
     your_business_offer: str =  Field(min_length=50)
     qualification_questions: list[str]
@@ -23,16 +28,17 @@ class AppointmentSetterSchema(BaseModel):
     objective_of_the_agent: Optional[str]
     calendar_choosed: Optional[str] = "calendly"
     webpage_link: Optional[str]
-    webpage_type: Optional[str]
     is_followups_enabled: bool = False
     follow_up_details: FollowUPConfig
     emoji_frequency: int
-    directness: int
     
 class UpdateAppointmentSetterSchema(BaseModel):
     agent_name: Optional[str] = None
     agent_personality: Optional[str] = None
-    agent_language: Optional[str] = None
+    agent_language: Optional[list[str]] = None
+    gender: Optional[str] = None
+    age: Optional[int] = None
+    prompt: Optional[str] = None
     business_description: Optional[str] = Field(default=None, min_length=50)
     your_business_offer: Optional[str] =  Field(default=None, min_length=50)
     qualification_questions: Optional[list[str]] = None
@@ -40,12 +46,16 @@ class UpdateAppointmentSetterSchema(BaseModel):
     objective_of_the_agent: Optional[str] = None
     calendar_choosed: Optional[str] = None
     webpage_link: Optional[str] = None
-    webpage_type: Optional[str] = None
+    whatsapp_number: Optional[str] = None
     is_followups_enabled: Optional[bool] = None
     follow_up_details: Optional[FollowUPConfig] = None
     emoji_frequency: Optional[int] = None
-    directness: Optional[int] = None
     
 class ChatWithAgent(BaseModel):
     message: str
+    
+class LeadAnalyticsSchema(BaseModel):
+    date: date
+    agent_id: str
+    
     
