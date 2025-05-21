@@ -1,4 +1,4 @@
-import uuid
+import uuid, datetime
 from fastapi import Depends, HTTPException
 from fastapi.routing import APIRouter
 from fastapi.responses import JSONResponse
@@ -164,6 +164,7 @@ def chatting_with_agent(agent_id, payload: ChatWithAgent, db: Session = Depends(
     lead_chat.status = ai_message.get('lead_qualification_status')
     chat.append(chat_history)
     lead_chat.chat_history = chat
+    lead_chat.updated_at = datetime.date.today()
     db.commit()
     return JSONResponse({"success": chat_history}, status_code=200)
     
@@ -200,44 +201,55 @@ def get_lead_analytics(lead_params: LeadAnalyticsSchema = Depends(), db: Session
     negative = 0
     engaged = 0
     no_answer = 0
+    total_leads = 0
     positive_rate = 0.00
     responded_rate = 0.00
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     if lead_params.agent_id=='all':
-        team = db.query(Team).filter_by(userId=user_id).first()
-        if not team:
+        team_member = db.query(TeamMember).filter_by(userId=user_id).first()
+        team = team_member.teamId
+        if not team_member:
             return JSONResponse({"postive": positive, "negative": negative, "engaged": engaged
                          , "positive_rate": positive_rate, "responded_rate": responded_rate},
                     status_code=200)
         if lead_params.agent_id=='all':
-            teammembers = db.query(TeamMember).filter_by(teamId=team.id).all()
+            team_members = db.query(TeamMember).filter_by(teamId=team).all()
         else:
-            teammembers = db.query(TeamMember).filter_by(teamId=team.id).all()
-        for teammember in teammembers:
+            team_members = db.query(TeamMember).filter_by(teamId=team).all()
+        for team_member in team_members:
             leads = (db.query(LeadAnalytics).join(AppointmentSetter, LeadAnalytics.agent_id == AppointmentSetter.id)
-                    .filter(AppointmentSetter.user_id == teammember.userId).all())
-            total_leads = (db.query(LeadAnalytics).join(AppointmentSetter, LeadAnalytics.agent_id == AppointmentSetter.id)
-                    .filter(AppointmentSetter.user_id == teammember.userId).count())
+                    .filter(AppointmentSetter.user_id == team_member.userId,
+                    LeadAnalytics.updated_at == lead_params.date).all())
+            leads_per_user = (db.query(LeadAnalytics).join(AppointmentSetter, LeadAnalytics.agent_id == AppointmentSetter.id)
+                    .filter(AppointmentSetter.user_id == team_member.userId, LeadAnalytics.updated_at == lead_params.date).count())
+            total_leads = total_leads+leads_per_user
+            for lead in leads:
+                if lead.status=="postive":
+                    positive = positive+1
+                if lead.status=="negative":
+                    negative=negative+1
+                if lead.status=="engaged":
+                    engaged=engaged+1
     else:
         agent_id = int(lead_params.agent_id)
-        leads = db.query(LeadAnalytics).filter_by(agent_id=agent_id).all()
-        total_leads = db.query(LeadAnalytics).filter_by(agent_id=agent_id).count()
-    for lead in leads:
-        if lead.status=="postive":
-            positive = positive+1
-        if lead.status=="negative":
-            negative=negative+1
-        if lead.status=="engaged":
-            engaged=engaged+1
+        leads = db.query(LeadAnalytics).filter_by(agent_id=agent_id, updated_at=lead_params.date).all()
+        total_leads = db.query(LeadAnalytics).filter_by(agent_id=agent_id, updated_at=lead_params.date).count()
+        for lead in leads:
+            if lead.status=="postive":
+                positive = positive+1
+            if lead.status=="negative":
+                negative=negative+1
+            if lead.status=="engaged":
+                engaged=engaged+1
     if positive!=0 and total_leads!=0:
         positive_rate = (positive/total_leads)*100
     if total_leads!=0:
         responded = positive+negative+engaged
         responded_rate = (responded/total_leads*100)
     return JSONResponse({"positive": positive, "negative": negative, "engaged": engaged, "no_answer": no_answer
-                         , "positive_rate": positive_rate, "responded_rate": responded_rate}, status_code=200)
+                         , "positive_rate": str(positive_rate), "responded_rate": str(responded_rate)}, status_code=200)
         
         
         

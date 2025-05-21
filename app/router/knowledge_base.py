@@ -1,7 +1,6 @@
 import os, uuid
 from fastapi import Depends, UploadFile, Form, File
 from fastapi.routing import APIRouter
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse 
 
 from sqlalchemy.orm import Session
@@ -15,8 +14,6 @@ router = APIRouter(tags=['knowledge_base'])
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-router.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
     
 @router.post('/knowledge-base')
 def embeddings_for_snippets(data: str = Form(...),
