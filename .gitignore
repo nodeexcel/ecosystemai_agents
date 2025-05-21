@@ -3,6 +3,7 @@ env
 static/dist
 ngrok
 nohup.out
+/uploads
 chromedriver
 # Byte-compiled / optimized / DLL files
 __pycache__/

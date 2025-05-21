@@ -153,4 +153,5 @@ class KnowledgeBase(Base):
     id = Column(Integer, primary_key=True, index=True)
     data = Column(String, nullable=True)
     data_type = Column(String)
+    path = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE")) 

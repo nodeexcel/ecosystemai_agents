@@ -207,6 +207,10 @@ def get_lead_analytics(lead_params: LeadAnalyticsSchema = Depends(), db: Session
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     if lead_params.agent_id=='all':
         team = db.query(Team).filter_by(userId=user_id).first()
+        if not team:
+            return JSONResponse({"postive": positive, "negative": negative, "engaged": engaged
+                         , "positive_rate": positive_rate, "responded_rate": responded_rate},
+                    status_code=200)
         if lead_params.agent_id=='all':
             teammembers = db.query(TeamMember).filter_by(teamId=team.id).all()
         else:
@@ -232,9 +236,8 @@ def get_lead_analytics(lead_params: LeadAnalyticsSchema = Depends(), db: Session
     if total_leads!=0:
         responded = positive+negative+engaged
         responded_rate = (responded/total_leads*100)
-    return JSONResponse({"postive": positive, "negative": negative, "engaged": engaged
-                         , "positive_rate": positive_rate, "responded_rate": responded_rate},
-                    status_code=200)
+    return JSONResponse({"positive": positive, "negative": negative, "engaged": engaged, "no_answer": no_answer
+                         , "positive_rate": positive_rate, "responded_rate": responded_rate}, status_code=200)
         
         
         
