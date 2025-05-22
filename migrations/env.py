@@ -7,6 +7,8 @@ from sqlalchemy import pool
 
 from alembic import context
 from app.models.model import AppointmentSetter
+from app.models.email_agent import EmailCampaign
+
 
 from dotenv import load_dotenv
 
