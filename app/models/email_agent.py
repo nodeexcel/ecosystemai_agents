@@ -25,6 +25,7 @@ class EmailCampaign(Base):
     review = Column(Boolean, default=False)
     calender_choosed = Column(String, nullable=True)
     url = Column(String, nullable=False)
-    is_draft = bool
+    is_draft = Column(Boolean, default=False)
     status = Column(String, default="Scheduled")
+    is_active = Column(Boolean, default=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))

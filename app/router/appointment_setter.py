@@ -23,9 +23,11 @@ def create_appointment_setter_agent(payload: AppointmentSetterSchema, db: Sessio
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
     if payload.objective_of_the_agent == "web_page":
         if payload.webpage_link is None or payload.webpage_type is None:
             return JSONResponse(content={'error': "Invalid data provided"}, status_code=422)
+        
     appointment_setter = AppointmentSetter(**payload.model_dump(), user_id=user_id)
     db.add(appointment_setter)
     db.commit()
@@ -39,7 +41,9 @@ def get_appointment_setter_agents(db: Session = Depends(get_db), user_id: str = 
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
     agents = db.query(AppointmentSetter).filter_by(user_id=user_id).all()
+    
     agents_info = []
     for agent in agents:
         agent_info = {
@@ -56,7 +60,9 @@ def get_appointment_setter_agent_details(agent_id, db: Session = Depends(get_db)
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
     agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
+    
     if agent:
         agent_info = {
             'agent_id': agent.id,
@@ -86,12 +92,14 @@ def updating_status_of_appointment_agent(agent_id,  db: Session = Depends(get_db
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
     agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
     if agent:
         if agent.is_active == False:
             agent.is_active = True
             db.commit()
             return JSONResponse(content={'success': 'status updated for agent'}, status_code=200)
+        
         if agent.is_active == True:
             agent.is_active = False
             db.commit()
@@ -103,7 +111,9 @@ def updating_appointment_agent(agent_id, payload: UpdateAppointmentSetterSchema,
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
     agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
+    
     if agent:
         appointment_setter = payload.model_dump(exclude_unset=True)
         for key, value in appointment_setter.items():
@@ -117,7 +127,9 @@ def deleting_appointment_agent(agent_id,  db: Session = Depends(get_db), user_id
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user eoes not exist"}, status_code=404)
+    
     agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
+    
     if agent:
         db.delete(agent)
         db.commit()
@@ -129,12 +141,15 @@ def chatting_with_agent(agent_id, payload: ChatWithAgent, db: Session = Depends(
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
     lead = db.query(AppointmentAgentLeads).filter_by(lead_id=user_id).first()
+    
     if not lead:
         lead = AppointmentAgentLeads(lead_id=user_id)
         db.add(lead)
         db.commit()
         db.refresh(lead)
+        
     agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
     if not agent:
         return JSONResponse(content={'error': 'Not authorized to talk this agent'}, status_code=404)
@@ -154,9 +169,11 @@ def chatting_with_agent(agent_id, payload: ChatWithAgent, db: Session = Depends(
     lead_chat.chat_history = chat
     db.commit()
     knowledge_base = fetch_text(payload.message, user_id)
+    
     prompt = Prompts.appointment_setter_prompt(agent, knowledge_base)
     appointment_agent = initialise_agent(prompt)
     ai_message = message_reply_by_agent(appointment_agent, payload.message, thread_id)
+    
     response = ai_message.get('response')
     chat_history = {}
     chat_history['agent'] = response
@@ -173,6 +190,7 @@ def get_chat_history(db: Session = Depends(get_db), user_id: str = Depends(get_c
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
     agents = db.query(AppointmentSetter).filter_by(user_id=user_id).all()
     response = []
     if agents:
@@ -190,6 +208,7 @@ def get_chat_history(chat_id, db: Session = Depends(get_db), user_id: str = Depe
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
     chat = db.query(LeadAnalytics).filter_by(id=chat_id).first()
     if chat:
         return JSONResponse(content={'success': chat.chat_history}, status_code=200)
@@ -204,9 +223,11 @@ def get_lead_analytics(lead_params: LeadAnalyticsSchema = Depends(), db: Session
     total_leads = 0
     positive_rate = 0.00
     responded_rate = 0.00
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
     if lead_params.agent_id=='all':
         team_member = db.query(TeamMember).filter_by(userId=user_id).first()
         team = team_member.teamId
@@ -214,10 +235,12 @@ def get_lead_analytics(lead_params: LeadAnalyticsSchema = Depends(), db: Session
             return JSONResponse({"postive": positive, "negative": negative, "engaged": engaged
                          , "positive_rate": positive_rate, "responded_rate": responded_rate},
                     status_code=200)
+            
         if lead_params.agent_id=='all':
             team_members = db.query(TeamMember).filter_by(teamId=team).all()
         else:
             team_members = db.query(TeamMember).filter_by(teamId=team).all()
+            
         for team_member in team_members:
             leads = (db.query(LeadAnalytics).join(AppointmentSetter, LeadAnalytics.agent_id == AppointmentSetter.id)
                     .filter(AppointmentSetter.user_id == team_member.userId,

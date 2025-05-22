@@ -1,10 +1,6 @@
 import os
 from pinecone import Pinecone, ServerlessSpec
 
-from sqlalchemy.orm import Session
-
-from langchain_openai import OpenAIEmbeddings
-
 pinecone_db = Pinecone(api_key=os.getenv('PINECONE_KEY'))
 
 index_name = os.getenv('PINECONEDB')
