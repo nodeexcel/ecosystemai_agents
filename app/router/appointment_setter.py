@@ -169,7 +169,6 @@ def chatting_with_agent(agent_id, payload: ChatWithAgent, db: Session = Depends(
     lead_chat.chat_history = chat
     db.commit()
     knowledge_base = fetch_text(payload.message, user_id)
-    
     prompt = Prompts.appointment_setter_prompt(agent, knowledge_base)
     appointment_agent = initialise_agent(prompt)
     ai_message = message_reply_by_agent(appointment_agent, payload.message, thread_id)
@@ -237,8 +236,6 @@ def get_lead_analytics(lead_params: LeadAnalyticsSchema = Depends(), db: Session
                     status_code=200)
             
         if lead_params.agent_id=='all':
-            team_members = db.query(TeamMember).filter_by(teamId=team).all()
-        else:
             team_members = db.query(TeamMember).filter_by(teamId=team).all()
             
         for team_member in team_members:

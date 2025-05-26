@@ -50,6 +50,7 @@ class Team(Base):
     id = Column(String, primary_key=True)
     userId = Column(Integer, ForeignKey('users.id'))
     numberOfTeamMembers = Column(Integer, default=1)
+    credits = Column(Integer, default=0)
     
     
 class PasswordResetToken(Base):

@@ -2,6 +2,7 @@ import os, uuid
 from fastapi import Depends, UploadFile, Form, File
 from fastapi.routing import APIRouter
 from fastapi.responses import JSONResponse 
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -18,7 +19,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 @router.post('/knowledge-base')
 def embeddings_for_snippets(data: str = Form(...),
                             data_type: str = Form(...),
-                            file: UploadFile = File(...),
+                            file: Optional[UploadFile] = File(None),
                             db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     
     user = db.query(User).filter_by(id=user_id).first()
@@ -67,20 +68,42 @@ def get_snippets(db: Session = Depends(get_db), user_id: str = Depends(get_curre
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     snippets = db.query(KnowledgeBase).filter_by(data_type='snippet', user_id=user_id).all()
-    info = []
+    snippets_info = []
+    snippet_info = {}
     for snippet in snippets:
-        info.append(snippet.data)
+        snippet_info['id'] = snippet.id
+        snippet_info['data'] = snippet.data
+        snippets_info.append(snippet_info)
+        
     websites = db.query(KnowledgeBase).filter_by(data_type='website', user_id=user_id).all()
     website_urls = []
+    website_info = {}
     for website in websites:
-        website_urls.append(website.data)
+        website_info['id'] = website.id
+        website_info['url'] = website.data
+        website_urls.append(website_info)
+        
     files = db.query(KnowledgeBase).filter_by(data_type='files', user_id=user_id).all()
     documents = []
+    document_info = {}
     for file in files:
-        path = f"http://116.202.210.102:8000{file.path}"
-        documents.append(path)
-    return JSONResponse({"snippets": info, "website": website_urls, "files":documents},status_code=200)
+        document_info['id'] = file.id
+        document_info['path'] = f"http://116.202.210.102:8000{file.path}"
+        documents.append(document_info)
+    return JSONResponse({"snippets": snippets_info, "website": website_urls, "files":documents},status_code=200)
 
+
+@router.delete('/knowledge-base/{id}')
+def delete_knowledge_base(id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    knowledge_base = db.query(KnowledgeBase).filter_by(id=id, user_id=user_id).first()
+    if not knowledge_base:
+        return JSONResponse({"error": "knowledge_base does not exist"}, status_code=404)
+    db.delete(knowledge_base)
+    db.commit()
+    return JSONResponse({"success": "knowledge base deleted successfully"},status_code=200)
 
 
 

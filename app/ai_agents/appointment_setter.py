@@ -5,14 +5,11 @@ from langgraph.checkpoint.postgres import PostgresSaver
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 from typing import Optional
-from langchain_openai import ChatOpenAI
 
 from psycopg_pool import ConnectionPool
 from dotenv import load_dotenv
 
 load_dotenv()
-
-
 
 DB_URI = os.getenv("SQLALCHEMY_DATABASE_URL")
 

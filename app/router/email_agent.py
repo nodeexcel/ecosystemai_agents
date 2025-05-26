@@ -11,6 +11,7 @@ from app.models.get_db import get_db
 from app.schemas.email_agent import EmailCampaignCreation, UpdateEmailCampaign
 from app.utils.user_auth import get_current_user
 from app.ai_agents.prompts import Prompts
+from app.ai_agents.email_agent import email_prompt
 from app.utils.knowledge_base import fetch_text
 
 router = APIRouter(tags=['email_campaign'])
@@ -165,3 +166,36 @@ def status_change_of_campaign(campaign_id,  db: Session = Depends(get_db), user_
             return JSONResponse(content={'success': 'status updated for campaign'}, status_code=200)
     return JSONResponse(content={'error': 'Campaign does not exist'}, status_code=404)
 
+@router.get("/get-campaign-schedule")
+def get_campaign_schedule(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    campaign = db.query(EmailCampaign).filter_by(user_id=user_id).first()
+    
+    if campaign:
+        if campaign.is_active == False:
+            campaign.is_active = True
+            db.commit()
+            return JSONResponse(content={'success': 'status updated for campaign'}, status_code=200)
+        
+        if campaign.is_active == True:
+            campaign.is_active = False
+            db.commit()
+            return JSONResponse(content={'success': 'status updated for campaign'}, status_code=200)
+    return JSONResponse(content={'error': 'Campaign does not exist'}, status_code=404)
+
+@router.get("/get-schedule")
+def schedule(db: Session = Depends(get_db)):
+    
+    campaign = db.query(EmailCampaign).filter_by(id=13).first()
+    if campaign:
+        prompt = Prompts.email_prompt_generator_agent(campaign)
+        messafe = email_prompt(prompt)
+        
+        if campaign.is_active == True:
+            campaign.is_active = False
+            db.commit()
+            return JSONResponse(content={'success': 'status updated for campaign'}, status_code=200)
+    return JSONResponse(content={'error': messafe}, status_code=404)
