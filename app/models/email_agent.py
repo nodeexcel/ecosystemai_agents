@@ -29,3 +29,15 @@ class EmailCampaign(Base):
     status = Column(String, default="Scheduled")
     is_active = Column(Boolean, default=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    
+class EmailContent(Base):
+    __tablename__ = "email_content"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    content = Column(String, nullable=False)
+    is_approved = Column(Boolean, default=False)
+    scheduled_date = Column(Date, nullable=False)
+    scheduled_time = Column(String, nullable=False)
+    is_sent = Column(Boolean, default=False)
+    status = Column(String, default="planned")
+    campaign_id = Column(Integer, ForeignKey("email_campaign.id", ondelete="CASCADE"))

@@ -223,6 +223,7 @@ Based on the provided campaign details, generate a tailored prompt that guides t
 
 ### Prompt Requirements:
 - The generated prompt should help produce an email that aligns with the campaign objective and drives action based on the CTA type.
+- Remember It is a campaign email creation os include this guildelines that it is to be send to 1000's of people at same time. So no recipient name's or sender's name position to be included just a using casual terms instead of any names.
 - Use the **main subject** as the central hook to draw attention.
 - Incorporate the **CTA** clearly and effectively:
   - If `cta_type` is `book_a_meeting`, include a booking calendar link (provided separately).
@@ -251,14 +252,15 @@ Instructions:
 - Only return the **body of the email**. Do not include the subject line, sender info, or any metadata.
 - If the email contains unrealistic phrases, awkward wording, hallucinated facts, or formatting issues typical of AI-generated content, rewrite them in a clear, human-like, and natural tone.
 - Maintain a professional and appropriate style depending on the content of the email.
+- Never include direct names of sender or reciever just use generalised terms for addressing as it is for a campaign.
 - Correct grammatical, spelling, or factual errors.
-- Write correct format and syntax code in basic html which only needs to correct any line breakers and link in the mail. Nothing else.
+- Write correct format and add some attrative phrase if needed which only needs to correct any line breakers and link in the mail like it should add a . Nothing else.
 - Ensure the email is ready to send as-is, without requiring further edits.
 
 Your goal is to return a polished, realistic email body that reads as if it were written by a human.
 
 #output
-Generate a body of the mail in a single string withperfect html syntax with no errors. Do not return <body_of_mail> kind of syntacx retrun absolutely correct syntax.     
+Generate a body of the mail in a single string with perfect english syntax with no errors.     
 "body_of_mail"
 """
       return email_validation

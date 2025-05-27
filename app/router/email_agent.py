@@ -6,12 +6,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.models.model import User
-from app.models.email_agent import EmailCampaign
+from app.models.email_agent import EmailCampaign, EmailContent
 from app.models.get_db import get_db 
 from app.schemas.email_agent import EmailCampaignCreation, UpdateEmailCampaign
 from app.utils.user_auth import get_current_user
-from app.ai_agents.prompts import Prompts
-from app.ai_agents.email_agent import email_prompt
 from app.utils.knowledge_base import fetch_text
 
 router = APIRouter(tags=['email_campaign'])
@@ -172,30 +170,34 @@ def get_campaign_schedule(db: Session = Depends(get_db), user_id: str = Depends(
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
-    campaign = db.query(EmailCampaign).filter_by(user_id=user_id).first()
+    campaigns = db.query(EmailCampaign).filter_by(user_id=user_id).all()
+    if not campaigns:
+        return JSONResponse(content={"Success": "You donot have any ongoing campaigns"}, status_code=200)
     
-    if campaign:
-        if campaign.is_active == False:
-            campaign.is_active = True
-            db.commit()
-            return JSONResponse(content={'success': 'status updated for campaign'}, status_code=200)
-        
-        if campaign.is_active == True:
-            campaign.is_active = False
-            db.commit()
-            return JSONResponse(content={'success': 'status updated for campaign'}, status_code=200)
-    return JSONResponse(content={'error': 'Campaign does not exist'}, status_code=404)
+    schedule_info = []
+    for campaign in campaigns:
+        schedule_content_info = {}
+        contents = db.query(EmailContent).filter(EmailContent.campaign_id == campaign.id).all()
+        if not contents:
+            schedule_content_info['campaign_id'] = campaign.id
+            schedule_content_info['scheduled_days'] = campaign.frequency
+            schedule_content_info['status'] = "Planned"
+            schedule_content_info['time'] = campaign.send_time_window
+            schedule_content_info['name'] = campaign.campaign_title
+            schedule_info.append(schedule_content_info)
+            
+        for content in contents:
+            schedule_content_info['campaign_id'] = campaign.id
+            schedule_content_info['date'] = content.scheduled_date
+            schedule_content_info['scheduled_days'] = campaign.frequency
+            schedule_content_info['status'] = content.status
+            schedule_content_info['time'] = content.scheduled_time
+            schedule_content_info['name'] = campaign.campaign_title
+            schedule_content_info['content_id'] = content.id
+            schedule_info.append(schedule_content_info)
+    return JSONResponse(content={"schedule_info": schedule_info}, status_code=200)
 
-@router.get("/get-schedule")
-def schedule(db: Session = Depends(get_db)):
-    
-    campaign = db.query(EmailCampaign).filter_by(id=13).first()
-    if campaign:
-        prompt = Prompts.email_prompt_generator_agent(campaign)
-        messafe = email_prompt(prompt)
+
         
-        if campaign.is_active == True:
-            campaign.is_active = False
-            db.commit()
-            return JSONResponse(content={'success': 'status updated for campaign'}, status_code=200)
-    return JSONResponse(content={'error': messafe}, status_code=404)
+    
+    

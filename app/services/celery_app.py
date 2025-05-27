@@ -1,7 +1,8 @@
 from celery import Celery
 
 celery_application = Celery("ecosystem-ai", 
-                            )
+                            broker="redis://localhost:6379/0",
+                            backend="redis://localhost:6379/1")
 
 celery_application.conf.update(
     task_serializer="json",
@@ -12,10 +13,15 @@ celery_application.conf.update(
     broker_connection_retry_on_startup=True,
     task_default_queue='app2_queue',
     beat_schedule={
-        'add-every-10-seconds': {
-            'task': 'app.services.tasks.add',
-            'schedule': 10.0,
-            'args': (1, 2),
+        'creating-mail': {
+            'task': 'app.schedulars.email_generation.create_emails',
+            'schedule': 36.00,
+        },
+        "sending-mail": {
+            'task': 'app.schedulars.email_generation.send_emails',
+            'schedule': 10.00
         }
     }
 )
+
+celery_application.autodiscover_tasks(['app.schedulars.email_generation'])
