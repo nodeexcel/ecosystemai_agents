@@ -26,7 +26,7 @@ class EmailCampaign(Base):
     calender_choosed = Column(String, nullable=True)
     url = Column(String, nullable=False)
     is_draft = Column(Boolean, default=False)
-    status = Column(String, default="Scheduled")
+    status = Column(String, default="scheduled")
     is_active = Column(Boolean, default=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     

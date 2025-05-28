@@ -25,6 +25,15 @@ def email_agent(prompt):
 
     return ai_response, email
 
+def email_correction(prompt, email):
+    ai_response = llm.invoke([("system", prompt), ("human", email)])
+    ai_response = ai_response.content
+    if ai_response.startswith('"') and ai_response.endswith('"'):
+        ai_response = ai_response[1:-1]
+    elif ai_response.startswith("'") and ai_response.endswith("'"):
+        ai_response = ai_response[1:-1]
+    return ai_response
+
 
 import smtplib
 from email.mime.text import MIMEText
@@ -50,7 +59,6 @@ def send_email(body: str, html: bool = False):
     else:
         part = MIMEText(body, "plain")
     msg.attach(part)
-    print("bvhgbhubihbihbih")
     with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
         server.starttls()
         server.login(SMTP_USERNAME, SMTP_PASSWORD)

@@ -43,3 +43,7 @@ class UpdateEmailCampaign(BaseModel):
     calender_choosed: Optional[str] = None
     url: Optional[str]  = None
     is_draft: bool = False
+    
+class ContentCheck(BaseModel):
+    status: str
+    email_content: Optional[str] = None
