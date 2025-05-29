@@ -241,6 +241,7 @@ def get_scheduled_content(content_id, payload: ContentCheck, db: Session = Depen
     content = (db.query(EmailContent).join(EmailCampaign, EmailContent.campaign_id == EmailCampaign.id).
                join(User, EmailCampaign.user_id == User.id).
                filter(EmailContent.id == content_id, User.id == user_id)).first()
+
     if content and content.status != "planned":
         if payload.status=="approved":
             content.status = "approved"

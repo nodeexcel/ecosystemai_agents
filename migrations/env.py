@@ -6,9 +6,10 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
-from app.models.model import AppointmentSetter
+from app.models.model import User
 from app.models.email_agent import EmailCampaign
-
+from app.models.contacts import Contacts
+from app.models.appointment_setter import AppointmentSetter
 
 from dotenv import load_dotenv
 
@@ -31,7 +32,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = [AppointmentSetter.metadata]
+target_metadata = [User.metadata]
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

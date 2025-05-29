@@ -5,8 +5,8 @@ from fastapi.responses import JSONResponse
 
 from sqlalchemy.orm import Session
 
-from app.models.model import (AppointmentSetter, User, LeadAnalytics,
-                            AppointmentAgentLeads, Team, TeamMember)
+from app.models.model import (User, Team, TeamMember)
+from app.models.appointment_setter import AppointmentSetter, LeadAnalytics, AppointmentAgentLeads
 from app.models.get_db import get_db 
 from app.schemas.appointment_setter import (AppointmentSetterSchema, UpdateAppointmentSetterSchema,
                                             ChatWithAgent, LeadAnalyticsSchema)
