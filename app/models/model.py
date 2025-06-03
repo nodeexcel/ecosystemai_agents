@@ -103,3 +103,14 @@ class TransactionHistory(Base):
     currency = Column(String)
     transactionDate = Column(DateTime, default=datetime.datetime.now())
     created_at = Column(DateTime, default=datetime.datetime.now())
+
+     
+class KnowledgeBase(Base):
+    __tablename__ = "knowledge_base"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    data = Column(String, nullable=True)
+    data_type = Column(String)
+    path = Column(String, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE")) 
+    

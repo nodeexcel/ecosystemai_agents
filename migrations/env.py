@@ -10,6 +10,7 @@ from app.models.model import User
 from app.models.email_agent import EmailCampaign
 from app.models.contacts import Contacts
 from app.models.appointment_setter import AppointmentSetter
+from app.models.phone_agent import PhoneCampaign
 
 from dotenv import load_dotenv
 

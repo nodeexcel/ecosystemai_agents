@@ -1,5 +1,6 @@
 import os, datetime, uuid
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from app.models.model import Base
 
 
 
