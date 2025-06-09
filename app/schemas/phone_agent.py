@@ -5,7 +5,7 @@ class AddPhoneNumber(BaseModel):
     name: str
     phone_number: str
     country: str
-    type: str
+    number_type: str
     status: bool = True
 
 class CreatePhoneAgent(BaseModel):

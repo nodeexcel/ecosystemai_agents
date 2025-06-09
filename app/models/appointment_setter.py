@@ -1,5 +1,5 @@
 import os, datetime, uuid
-from sqlalchemy import Column, Boolean, Integer, String, ARRAY, DateTime, ForeignKey, Date
+from sqlalchemy import Column, Boolean, Integer, String, ARRAY, DateTime, ForeignKey, Date, BigInteger
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableList
 
@@ -23,6 +23,7 @@ class AppointmentSetter(Base):
     webpage_link = Column(String, nullable=True)
     whatsapp_number = Column(String, nullable=True)
     prompt = Column(String, nullable=False)
+    platform_unique_id = Column(String, unique=True, nullable=False)
     is_followups_enabled = Column(Boolean, default=False)
     follow_up_details = Column(JSONB, nullable=True)
     emoji_frequency = Column(Integer, nullable=False)
@@ -33,7 +34,7 @@ class AppointmentAgentLeads(Base):
     __tablename__ = "appointment_agent_leads"
     
     id = Column(Integer, primary_key=True, index=True)
-    lead_id = Column(Integer, unique=True)
+    lead_id = Column(BigInteger, unique=True)
     
 class LeadAnalytics(Base):
     __tablename__ = "lead_analytics"

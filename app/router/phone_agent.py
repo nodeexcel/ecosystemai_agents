@@ -1,7 +1,7 @@
 import uuid, datetime
 from fastapi import Depends, HTTPException
 from fastapi.routing import APIRouter
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from sqlalchemy.orm import Session
 
@@ -11,6 +11,7 @@ from app.models.get_db import get_db
 from app.schemas.phone_agent import (AddPhoneNumber, CreatePhoneAgent,
                                      AddCampaigns, AgentFilterParams, UpdateCampaign)
 from app.utils.user_auth import get_current_user
+from twilio.twiml.voice_response import VoiceResponse
 
 router = APIRouter(tags=["phone-agents"])
 
@@ -21,7 +22,7 @@ def add_phone_number(payload: AddPhoneNumber, db: Session = Depends(get_db), use
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
-    phone_number = db.query(AgentPhoneNumbers).filter_by(id=payload.phone_number, user_id=user_id).first()
+    phone_number = db.query(AgentPhoneNumbers).filter_by(phone_number=payload.phone_number, user_id=user_id).first()
     if phone_number:
         return JSONResponse(content={'error': "phone number is already added"}, status_code=409)
         
@@ -63,7 +64,7 @@ def create_phone_campaign(payload: AddCampaigns, db: Session = Depends(get_db), 
     if not phone_number:
         return JSONResponse(content={'error': "agent does not exists"}, status_code=404)
         
-    add_campaign = PhoneAgent(**payload.model_dump(), user_id=user_id)
+    add_campaign = PhoneCampaign(**payload.model_dump(), user_id=user_id)
     db.add(add_campaign)
     db.commit()
     db.refresh(add_campaign)
@@ -84,11 +85,12 @@ def get_phone_numbers(db: Session = Depends(get_db), user_id: str = Depends(get_
     for phone_number in phone_numbers:
         number_data = {}
         number_data['id'] = phone_number.id
+        number_data['phone_number'] = phone_number.phone_number
         number_data['country'] = phone_number.country
         number_data['status'] = phone_number.status
         number_data['total_calls'] = 0
         number_data['direction'] = phone_number.number_type
-        number_data['creation_date'] = phone_number.created_at
+        number_data['creation_date'] = str(phone_number.created_at)
         numbers_info.append(number_data)
         
     return JSONResponse(content={'phone_numbers': numbers_info}, status_code=200)
@@ -138,6 +140,7 @@ def get_phone_campaigns(params: AgentFilterParams = Depends(), db: Session = Dep
         campaign_data['status'] = campaign.status
         campaign_data['language'] = campaign.language
         campaign_data['total_calls'] = 0
+        campaign_data['creation_date'] = str(campaign.created_at)
         campaigns_info.append(campaign_data)
         
     return JSONResponse(content={'campaigns_info': campaigns_info}, status_code=200)
@@ -158,16 +161,19 @@ def get_phone_campaign_detail(campaign_id, db: Session = Depends(get_db), user_i
     campaign_data['campaign_name'] = campaign.campaign_name
     campaign_data['language'] = campaign.language
     campaign_data['voice'] = campaign.voice
+    campaign_data['target_lists'] = campaign.target_lists
     campaign_data['choose_calendar'] = campaign.choose_calendar
     campaign_data['max_call_time'] = campaign.max_call_time
-    campaign_data['choose_an_agent'] = agent.agent_name
+    campaign_data['agent'] = agent.id
+    campaign_data['tom_engages'] = campaign.tom_engages
     campaign_data['phone_number'] = campaign.phone_number
     campaign_data['country'] = campaign.country
     campaign_data['catch_phrase'] = campaign.catch_phrase
+    campaign_data['call_script'] = campaign.call_script
         
     return JSONResponse(content={'campaign_data': campaign_data}, status_code=200)
 
-@router.patch("/phone_number-status/{phone_number_id}")
+@router.patch("/phone-number-status/{phone_number_id}")
 def updating_status_of_phone_number(phone_number_id,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
@@ -175,13 +181,13 @@ def updating_status_of_phone_number(phone_number_id,  db: Session = Depends(get_
     
     number = db.query(AgentPhoneNumbers).filter_by(id=phone_number_id, user_id=user_id).first()
     if number:
-        if number.is_active == False:
-            number.is_active = True
+        if number.status == False:
+            number.status = True
             db.commit()
             return JSONResponse(content={'success': 'status updated for number'}, status_code=200)
         
-        if number.is_active == True:
-            number.is_active = False
+        if number.status == True:
+            number.status = False
             db.commit()
             return JSONResponse(content={'success': 'status updated for number'}, status_code=200)
     return JSONResponse(content={'error': 'Phone Number does not exist'}, status_code=404)
@@ -194,18 +200,18 @@ def updating_status_of_phone_agent(agent_id,  db: Session = Depends(get_db), use
     
     agent = db.query(PhoneAgent).filter_by(id=agent_id, user_id=user_id).first()
     if agent:
-        if agent.is_active == False:
-            agent.is_active = True
+        if agent.status == False:
+            agent.status = True
             db.commit()
             return JSONResponse(content={'success': 'status updated for agent'}, status_code=200)
         
-        if agent.is_active == True:
-            agent.is_active = False
+        if agent.status == True:
+            agent.status = False
             db.commit()
             return JSONResponse(content={'success': 'status updated for agent'}, status_code=200)
     return JSONResponse(content={'error': 'Phone Number does not exist'}, status_code=404)
 
-@router.delete("/phone_number/{phone_number_id}")
+@router.delete("/phone-number/{phone_number_id}")
 def delete_phone_number(phone_number_id,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
@@ -218,7 +224,7 @@ def delete_phone_number(phone_number_id,  db: Session = Depends(get_db), user_id
         return JSONResponse(content={'success': 'Phone Number deleted successfully'}, status_code=200)
     return JSONResponse(content={'error': 'Phone Number does not exist'}, status_code=404)
 
-@router.delete("/campaign/{campaign_id}")
+@router.delete("/phone-campaign/{campaign_id}")
 def delete_campaign(campaign_id,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
@@ -231,19 +237,8 @@ def delete_campaign(campaign_id,  db: Session = Depends(get_db), user_id: str = 
         return JSONResponse(content={'success': 'Campaign deleted successfully'}, status_code=200)
     return JSONResponse(content={'error': 'Campaign does not exist'}, status_code=404)
 
-@router.put("/campaign/{campaign_id}")
-def update_campaign(campaign_id,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
-    user = db.query(User).filter_by(id=user_id).first()
-    if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
-    
-    campaign = db.query(PhoneCampaign).filter_by(id=campaign_id, user_id=user_id).first()
-    if campaign:
-        
-        return JSONResponse(content={'success': 'Campaign deleted successfully'}, status_code=200)
-    return JSONResponse(content={'error': 'Campaign does not exist'}, status_code=404)
 
-@router.put("/update-campaign/{campaign_id}")
+@router.put("/update-phone-campaign/{campaign_id}")
 def update_phone_campign(campaign_id, payload: UpdateCampaign,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
@@ -259,7 +254,7 @@ def update_phone_campign(campaign_id, payload: UpdateCampaign,  db: Session = De
         return JSONResponse(content={'success': 'Campaign updated successfully'}, status_code=200)
     return JSONResponse(content={'error': 'Not authorized to update this campaign'}, status_code=404)
 
-@router.post("/duplicate-campaign/{campaign_id}")
+@router.post("/duplicate-phone-campaign/{campaign_id}")
 def duplicate_a_campaign(campaign_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
@@ -280,11 +275,15 @@ def duplicate_a_campaign(campaign_id, db: Session = Depends(get_db), user_id: st
             "status": campaign.status,
             "catch_phrase": campaign.catch_phrase,
             "call_script": campaign.call_script,
-            "agent": campaign.agent,
-            "user_id": user_id}
+            "agent": campaign.agent}
                 
         new_campaign = PhoneCampaign(**campaign_info, user_id=user_id)
         db.add(new_campaign)
         db.commit()
         return JSONResponse(content={'success': "campaign duplicated"}, status_code=201)
     return JSONResponse(content={'error': 'Campaign does not exist'}, status_code=404) 
+
+
+    
+
+

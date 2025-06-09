@@ -1,7 +1,9 @@
 from fastapi import FastAPI
-from .router import appointment_setter, knowledge_base, email_agent, phone_agent
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+
+from .router import appointment_setter, knowledge_base, email_agent, phone_agent
+from .social_media_integrations import instagram
 
 app = FastAPI()
 
@@ -22,3 +24,4 @@ app.include_router(appointment_setter.router)
 app.include_router(knowledge_base.router)
 app.include_router(email_agent.router)
 app.include_router(phone_agent.router)
+app.include_router(instagram.router)
