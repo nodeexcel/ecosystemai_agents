@@ -60,4 +60,6 @@ class LeadAnalyticsSchema(BaseModel):
     date: date
     agent_id: str
     
+class LeadStatus():
+    lead_status: str = "positive"
     

@@ -145,7 +145,7 @@ def instagram_callback_url(request: InstagramCallback = Depends(), db: Session =
     username = user_response['username']
     name = user_response['name']
     
-    instagram_user = db.query(Instagram).filter_by(user_id=user_id).first()
+    instagram_user = db.query(Instagram).filter_by(instagram_user_id=instagram_user_id).first()
     
     if instagram_user:
         return RedirectResponse(url="http://116.202.210.102:3089/dashboard/brain", status_code=303)
