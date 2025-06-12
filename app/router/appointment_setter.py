@@ -1,4 +1,4 @@
-import uuid, datetime
+import datetime
 from fastapi import Depends, HTTPException
 from fastapi.routing import APIRouter
 from fastapi.responses import JSONResponse
@@ -184,7 +184,7 @@ def chatting_with_lead(chat_id, payload: ChatWithAgent, db: Session = Depends(ge
     return JSONResponse({"success": chat_history}, status_code=200)
     
 @router.get("/get-chats")
-def get_chat_history(status: LeadStatus = Depends(), db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def get_chat_history(lead_status: LeadStatus = Depends(), db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
@@ -193,7 +193,7 @@ def get_chat_history(status: LeadStatus = Depends(), db: Session = Depends(get_d
     response = []
     if agents:
         for agent in agents:
-            chats = db.query(LeadAnalytics).filter_by(agent_id=agent.id, status=status.lead_status).all()
+            chats = db.query(LeadAnalytics).filter_by(agent_id=agent.id, status=lead_status.lead_status).all()
             if chats:
                 for chat in chats:
                     lead = chat.id
@@ -290,9 +290,70 @@ def get_lead_analytics(lead_params: LeadAnalyticsSchema = Depends(), db: Session
     if total_leads!=0:
         responded = positive+negative+engaged
         responded_rate = (responded/total_leads*100)
-    print(positive)
     return JSONResponse({"positive": positive, "negative": negative, "engaged": engaged, "no_answer": no_answer
                          , "positive_rate": str(positive_rate), "responded_rate": str(responded_rate)}, status_code=200)
+    
+@router.post("/test-agent/{agent_id}")
+def test_agent(agent_id, payload: ChatWithAgent, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
+    
+    if not agent:
+        return JSONResponse(content={"error": "agent does not exist"}, status_code=404)
+    
+    thread_id = payload.chat_id
+    if not thread_id:
+        return JSONResponse(content={"error": "test agent not configured properly"}, status_code=400)
+    knowledge_base = fetch_text(payload.message, agent.user_id)
+    prompt = Prompts.appointment_setter_prompt(agent, knowledge_base)
+    appointment_agent = initialise_agent(prompt)
+    ai_message = message_reply_by_agent(appointment_agent, payload.message, thread_id)
+    response = ai_message.get('response')
+
+    return JSONResponse({"response": response}, status_code=200)
+
+
+@router.post("/duplicate-appointment-setter/{agent_id}")
+def duplicate_a_agent(agent_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)  
+    
+    agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
+    
+    if agent:
+        agent_info = {
+            'agent_name': agent.agent_name,
+            'age': agent.age,
+            'gender': agent.gender,
+            'prompt': agent.prompt,
+            'agent_personality': agent.agent_personality,
+            'agent_language': agent.agent_language,
+            'business_description': agent.business_description,
+            'whatsapp_number': agent.whatsapp_number,
+            'your_business_offer': agent.your_business_offer,
+            'qualification_questions': agent.qualification_questions,
+            'platform_unique_id': agent.platform_unique_id,
+            'sequence': agent.sequence,
+            'objective_of_the_agent': agent.objective_of_the_agent,
+            'calendar_choosed': agent.calendar_choosed,
+            'webpage_link': agent.webpage_link,
+            'is_followups_enabled': agent.is_followups_enabled,
+            'follow_up_details': agent.follow_up_details,
+            'emoji_frequency': agent.emoji_frequency,
+            'is_active': agent.is_active,
+            'user_id': agent.user_id,
+            }
+
+        new_agent = AppointmentSetter(**agent_info, user_id=user_id)
+        db.add(new_agent)
+        db.commit()
+        return JSONResponse(content={'success': "appointment setter agent duplicated"}, status_code=201)
+    return JSONResponse(content={'error': 'appointment agent does not exist'}, status_code=404) 
         
         
         

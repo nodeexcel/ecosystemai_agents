@@ -7,3 +7,9 @@ class InstagramCallback(BaseModel):
 class InstagramMessageAlert(BaseModel):
     object: str
     entry: list
+    
+class FacebookCallback(BaseModel):
+    code: str
+    state: int
+
+    

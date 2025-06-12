@@ -10,20 +10,21 @@ from app.models.get_db import get_db
 from app.models.model import User
 from app.models.appointment_setter import (AppointmentSetter, AppointmentAgentLeads,
                                            LeadAnalytics)
-from app.models.social_media_integrations import Instagram
-from app.schemas.social_media_integration import (InstagramCallback,
+from app.models.social_media_integrations import Whatsapp
+from app.schemas.social_media_integration import (FacebookCallback,
                                                 InstagramMessageAlert)
-from app.utils.instagram import (user_authorization, long_lived_access_token, instagram_user_info,
-                                instagram_send_message, image_to_text, instagram_message_invalid_type)
+from app.utils.whatsapp import (generate_short_lived_access_token, long_lived_access_token,
+                                get_phone_number, whatsapp_send_messages, get_image_url, image_to_text,
+                                invalid_whatsapp_send_messages)
 from app.utils.user_auth import get_current_user
 from app.ai_agents.prompts import Prompts
 from app.ai_agents.appointment_setter import initialise_agent, message_reply_by_agent
 from app.utils.knowledge_base import fetch_text
 
-router = APIRouter(tags=["instagram"])
+router = APIRouter(tags=["whatsapp"])
 
-@router.get("/instagram/webhook")
-def instagram_verify_webhook(mode: str = Query(..., alias="hub.mode"),
+@router.get("/whatsapp/webhook")
+def whatsapp_verify_webhook(mode: str = Query(..., alias="hub.mode"),
     verify_token: str = Query(..., alias="hub.verify_token"),
     challenge: str = Query(..., alias="hub.challenge")):
     
@@ -32,8 +33,8 @@ def instagram_verify_webhook(mode: str = Query(..., alias="hub.mode"),
     else:
         return JSONResponse(content={"error": "You are not authorized to access the url."}, status_code=403)
     
-@router.get("/auth/instagram/callback")
-def instagram_callback_url(request: InstagramCallback = Depends(), db: Session = Depends(get_db)):
+@router.get("/auth/facebook/callback")
+def facebook_callback_url(request: FacebookCallback = Depends(), db: Session = Depends(get_db)):
     code = request.code
     state = request.state
     
@@ -43,89 +44,82 @@ def instagram_callback_url(request: InstagramCallback = Depends(), db: Session =
         return JSONResponse(content={"error": "wrong creds"}, status_code=400)
 
     if not code:
-        return JSONResponse(content={"error": "Missing code from Instagram"}, status_code=400)
+        return JSONResponse(content={"error": "Missing code from Whatsapp"}, status_code=400)
     
-    token_response, status = user_authorization(code)
-        
+    response, status = generate_short_lived_access_token(code)
+    
     if status != 200:
         return RedirectResponse(url="http://116.202.210.102:3089/dashboard/brain", status_code=303)
     
-    short_lived_access_token = token_response.get("access_token")
-
+    short_lived_access_token = response.get('access_token')
+    
     response, status = long_lived_access_token(short_lived_access_token)
     
+    access_token = response.get('access_token')
+    expiry_time = response.get('expires_in')
+    
     if status != 200:
         return RedirectResponse(url="http://116.202.210.102:3089/dashboard/brain", status_code=303)
-
-    access_token = response.get("access_token")
-    expiry_time = response.get("expires_in")    
     
     time_delta = datetime.timedelta(seconds=expiry_time)
     
     expiry_time = datetime.datetime.now(datetime.timezone.utc) + time_delta
     
-    user_response, status = instagram_user_info(access_token)
+    data, whatsapp_business_id = get_phone_number(access_token)
     
-    if status != 200:
+    phone_number = data.get('display_phone_number')
+    name = data.get('verified_name')
+    phone_id = data.get('id')
+
+    whatsapp_number = db.query(Whatsapp).filter_by(whatsapp_phone_id=phone_number).first()
+    
+    if whatsapp_number:
         return RedirectResponse(url="http://116.202.210.102:3089/dashboard/brain", status_code=303)
     
-    instagram_user_id = user_response['user_id']
-    instagram_id = user_response['id']
-    username = user_response['username']
-    name = user_response['name']
-    
-    instagram_user = db.query(Instagram).filter_by(instagram_user_id=instagram_user_id).first()
-    
-    if instagram_user:
-        return RedirectResponse(url="http://116.202.210.102:3089/dashboard/brain", status_code=303)
-    
-    instagram_user = Instagram(instagram_user_id=instagram_user_id, instagram_id=instagram_id, username=username, name=name,
+    whatsapp_number = Whatsapp(whatsapp_business_id=whatsapp_business_id, whatsapp_phone_id=phone_id, name=name, phone_number=phone_number,
                             expiry_time=expiry_time, access_token=access_token, user_id=user_id)
-    db.add(instagram_user)
+    db.add(whatsapp_number)
     db.commit()
     return RedirectResponse(url="http://116.202.210.102:3089/dashboard/brain", status_code=303)
 
-@router.post("/instagram/webhook")
-def instagram_message_webhook(request: InstagramMessageAlert, db: Session = Depends(get_db)):
-    print(request.entry)
+@router.post("/whatsapp/webhook")
+def whatsapp_message_webhook(request: InstagramMessageAlert, db: Session = Depends(get_db)):
     payload = request.entry
-    payload = payload[0]
-    id = payload['id']
-    description = payload['messaging']
-    message_info = description[0]
-    sender_id = message_info["sender"]["id"]
-    recipient_id = message_info["recipient"]["id"]
     
-    if id == sender_id:
-        return JSONResponse({"sucess": ""}, status_code=200)
+    whatsapp_number = db.query(Whatsapp).filter_by(whatsapp_phone_id=phone_id).first()
     
-    instagram_user = db.query(Instagram).filter_by(instagram_user_id=recipient_id).first()
-    
-    if not instagram_user:
+    if not whatsapp_number:
         return ""
     
-    message = message_info["message"]
-    text = message.get("text")
+    access_token = whatsapp_number.access_token
     
-    if not text:
-        attachments = message.get("attachments")
-        if attachments is None:
-            return ("")
-        attachments = attachments[0]
-        if attachments.get("type") == 'image':
-            text = image_to_text(attachments['payload']['url'])
-        else:
-            instagram_message_invalid_type(instagram_user.access_token, sender_id)
+    payload = payload[0]
+    agent_number = payload['changes']
+    agent_number = agent_number[0]
+    phone_id = agent_number['value']['metadata']['phone_number_id']
+    messages = agent_number['value']['messages']
+    messages = messages[0]
+    lead_id = messages.get('from')
+    message_type = messages.get('type')
+    if message_type == "text":
+        text =  messages['text']['body']
+    if message_type == 'image':
+        image_id = messages['image']['id']
+    else:
+        invalid_whatsapp_send_messages(access_token, phone_id, lead_id)
         
-    agent = db.query(AppointmentSetter).filter_by(platform_unique_id=recipient_id).first()
+    encoded_image = get_image_url(image_id, access_token)
+    response = image_to_text(encoded_image)
+        
+    agent = db.query(AppointmentSetter).filter_by(platform_unique_id=phone_id).first()
     
     if not agent:
         return JSONResponse(content={'error': 'Not authorized to talk this agent'}, status_code=404)
     
-    lead = db.query(AppointmentAgentLeads).filter_by(lead_id=sender_id).first()
+    lead = db.query(AppointmentAgentLeads).filter_by(lead_id=lead_id).first()
     
     if not lead:
-        lead = AppointmentAgentLeads(lead_id=sender_id)
+        lead = AppointmentAgentLeads(lead_id=lead_id)
         db.add(lead)
         db.commit()
         db.refresh(lead)
@@ -148,7 +142,7 @@ def instagram_message_webhook(request: InstagramMessageAlert, db: Session = Depe
     lead_chat.chat_history = chat
     db.commit()
     
-    if agent.is_active == False or lead_chat.agent_is_enabled == False:
+    if lead_chat.agent_is_enabled == False:
         return JSONResponse({"sucess": ""}, status_code=200)
     
     knowledge_base = fetch_text(text, agent.user_id)
@@ -166,40 +160,43 @@ def instagram_message_webhook(request: InstagramMessageAlert, db: Session = Depe
     lead_chat.updated_at = datetime.date.today()
     db.commit()
 
-    access_token = instagram_user.access_token
-    instagram_send_message(access_token, sender_id, response)
+    access_token = whatsapp_number.access_token
+    whatsapp_send_messages(access_token, phone_id, lead_id, response)
     return JSONResponse({"sucess": ""}, status_code=200)
 
-@router.get("/get-insta-accounts")
-def get_connected_insta_accounts(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+
+@router.get("/get-whatsapp-accounts")
+def get_connected_whatsapp_accounts(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
 
-    accounts = db.query(Instagram).filter_by(user_id=user_id).all()
+    accounts = db.query(Whatsapp).filter_by(user_id=user_id).all()
     account_info = []
     for account in accounts:
-        insta_account_detail = {}
-        insta_account_detail['username'] = account.username
-        insta_account_detail['instagram_user_id'] = account.instagram_user_id
-        account_info.append(insta_account_detail)
-    return JSONResponse(content={"insta_account_info": account_info}, status_code=200)
+        whatsapp_account_detail = {}
+        whatsapp_account_detail['username'] = account.phone_number
+        whatsapp_account_detail['whatsapp_phone_id'] = account.whatsapp_phone_id
+        account_info.append(whatsapp_account_detail)
+    return JSONResponse(content={"whatsapp_account_info": account_info}, status_code=200)
 
-@router.delete("/delete-insta-account/{instagram_id}")
-def delete_connected_insta_accounts(instagram_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+@router.delete("/delete-whatsapp-account/{whatsapp_id}")
+def delete_connected_whatsapp_accounts(whatsapp_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
-    agent = db.query(AppointmentSetter).filter_by(platform_unique_id=instagram_id).first()
+    agent = db.query(AppointmentSetter).filter_by(platform_unique_id=whatsapp_id).first()
     if agent:
         return JSONResponse(content={"success": f"""The id is linked with {agent.agent_name}.
                                      Either delete agent or relink with another account."""}, status_code=400)
 
-    account = db.query(Instagram).filter_by(instagram_user_id=instagram_id, user_id=user_id).first()
+    account = db.query(Whatsapp).filter_by(whatsapp_phone_id=whatsapp_id, user_id=user_id).first()
     if account:
         db.delete(account)
         db.commit()
     return JSONResponse(content={"success": "account deleted successfully"}, status_code=200)
-        
 
+@router.get("/auth/google-calendar/callback")
+def google_message_webhook(code, db: Session = Depends(get_db)):
+    print(code)

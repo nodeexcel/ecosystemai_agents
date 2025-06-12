@@ -1,9 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .router import appointment_setter, knowledge_base, email_agent, phone_agent
 from .social_media_integrations import instagram
+from .social_media_integrations import whatsapp
 
 app = FastAPI()
 
@@ -25,3 +26,4 @@ app.include_router(knowledge_base.router)
 app.include_router(email_agent.router)
 app.include_router(phone_agent.router)
 app.include_router(instagram.router)
+app.include_router(whatsapp.router)

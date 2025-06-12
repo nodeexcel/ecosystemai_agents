@@ -52,6 +52,7 @@ def message_reply_by_agent(appointment_agent, user_query, thread_id):
     config = {"configurable": {"thread_id": thread_id}}
     response = appointment_agent.invoke({"messages": [{"role": "user", "content": user_query}]},
                                         config=config)
+    print(response)
     ai_response = response["messages"][-1].content
     ai_response = json.loads(ai_response)
     

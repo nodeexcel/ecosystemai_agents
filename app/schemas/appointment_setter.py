@@ -55,11 +55,12 @@ class UpdateAppointmentSetterSchema(BaseModel):
     
 class ChatWithAgent(BaseModel):
     message: str
+    chat_id: Optional[str] = None
     
 class LeadAnalyticsSchema(BaseModel):
     date: date
     agent_id: str
     
-class LeadStatus():
+class LeadStatus(BaseModel):
     lead_status: str = "positive"
     

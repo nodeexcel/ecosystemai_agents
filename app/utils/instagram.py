@@ -1,4 +1,5 @@
 import os, requests
+from app.services.openai_service import openai_client
 
 def user_authorization(code):
 
@@ -60,3 +61,39 @@ def instagram_send_message(access_token, recipient_id, message_text):
     }
     
     response = requests.post(url, headers=headers, json=data)
+    
+def instagram_message_invalid_type(access_token, recipient_id):
+    url = f"https://graph.instagram.com/v23.0/me/messages"
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "recipient": {
+            "id": recipient_id
+        },
+        "message": {
+            "text": "Please do provide text or any image for better communication."
+        }
+    }
+    
+    response = requests.post(url, headers=headers, json=data)
+    
+
+def image_to_text(image_url):
+    response = openai_client.responses.create(
+    model="gpt-4.1-mini",
+    input=[{
+        "role": "user",
+        "content": [
+            {"type": "input_text", "text": "analyse the image and return a statement explaining what the image wants to pass as a message"},
+            {
+                "type": "input_image",
+                "image_url": image_url,
+            },
+        ],
+    }],
+)
+    return response.output_text
