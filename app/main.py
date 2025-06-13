@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from .router import appointment_setter, knowledge_base, email_agent, phone_agent
 from .social_media_integrations import instagram
 from .social_media_integrations import whatsapp
+from .social_media_integrations import google_calendar
 
 app = FastAPI()
 
@@ -27,3 +28,4 @@ app.include_router(email_agent.router)
 app.include_router(phone_agent.router)
 app.include_router(instagram.router)
 app.include_router(whatsapp.router)
+app.include_router(google_calendar.router)

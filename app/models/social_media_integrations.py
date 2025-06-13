@@ -27,3 +27,16 @@ class Whatsapp(Base):
     access_token = Column(String, nullable=False)
     expiry_time = Column(DateTime)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"))
+    
+class Google_Calendar(Base):
+    __tablename__ = "google_calendar_connection_details"
+    
+    google_id = Column(String, primary_key=True)
+    email = Column(String, unique=True)
+    calendar_id = Column(String)
+    name = Column(String, nullable=True)
+    timezone = Column(String, nullable=False)
+    access_token = Column(String, nullable=False)
+    refresh_token = Column(String, nullable=False)
+    expiry_time = Column(DateTime)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"))

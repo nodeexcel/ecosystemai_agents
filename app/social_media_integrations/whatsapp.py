@@ -71,7 +71,7 @@ def facebook_callback_url(request: FacebookCallback = Depends(), db: Session = D
     name = data.get('verified_name')
     phone_id = data.get('id')
 
-    whatsapp_number = db.query(Whatsapp).filter_by(whatsapp_phone_id=phone_number).first()
+    whatsapp_number = db.query(Whatsapp).filter_by(whatsapp_phone_id=phone_id).first()
     
     if whatsapp_number:
         return RedirectResponse(url="http://116.202.210.102:3089/dashboard/brain", status_code=303)
@@ -86,30 +86,33 @@ def facebook_callback_url(request: FacebookCallback = Depends(), db: Session = D
 def whatsapp_message_webhook(request: InstagramMessageAlert, db: Session = Depends(get_db)):
     payload = request.entry
     
+    
+    payload = payload[0]
+    agent_number = payload['changes']
+    agent_number = agent_number[0]
+    phone_id = agent_number['value']['metadata']['phone_number_id']
+    
     whatsapp_number = db.query(Whatsapp).filter_by(whatsapp_phone_id=phone_id).first()
     
     if not whatsapp_number:
         return ""
     
     access_token = whatsapp_number.access_token
-    
-    payload = payload[0]
-    agent_number = payload['changes']
-    agent_number = agent_number[0]
-    phone_id = agent_number['value']['metadata']['phone_number_id']
+    status_check = agent_number['value']
+    if status_check.get('statuses'):
+        return ""
     messages = agent_number['value']['messages']
     messages = messages[0]
     lead_id = messages.get('from')
     message_type = messages.get('type')
     if message_type == "text":
         text =  messages['text']['body']
-    if message_type == 'image':
+    elif message_type == 'image':
         image_id = messages['image']['id']
+        encoded_image = get_image_url(image_id, access_token)
+        response = image_to_text(encoded_image)
     else:
         invalid_whatsapp_send_messages(access_token, phone_id, lead_id)
-        
-    encoded_image = get_image_url(image_id, access_token)
-    response = image_to_text(encoded_image)
         
     agent = db.query(AppointmentSetter).filter_by(platform_unique_id=phone_id).first()
     
@@ -130,7 +133,7 @@ def whatsapp_message_webhook(request: InstagramMessageAlert, db: Session = Depen
     chat_history['user'] = text
     if not lead_chat:
         thread_id = uuid.uuid4()
-        lead_chat = LeadAnalytics(lead_id=lead.id, agent_id=agent_id, thread_id=thread_id)
+        lead_chat = LeadAnalytics(lead_id=lead.id, agent_id=agent_id, thread_id=thread_id, platform_unique_id=whatsapp_number.whatsapp_phone_id)
         db.add(lead_chat)
         db.commit()
         
@@ -197,6 +200,3 @@ def delete_connected_whatsapp_accounts(whatsapp_id, db: Session = Depends(get_db
         db.commit()
     return JSONResponse(content={"success": "account deleted successfully"}, status_code=200)
 
-@router.get("/auth/google-calendar/callback")
-def google_message_webhook(code, db: Session = Depends(get_db)):
-    print(code)

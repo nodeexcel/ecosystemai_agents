@@ -6,14 +6,16 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.models.model import (User, Team, TeamMember)
-from app.models.appointment_setter import AppointmentSetter, LeadAnalytics
+from app.models.appointment_setter import AppointmentSetter, AppointmentAgentLeads, LeadAnalytics
 from app.models.get_db import get_db 
-from app.models.social_media_integrations import Instagram
+from app.models.social_media_integrations import Instagram, Whatsapp
 from app.schemas.appointment_setter import (AppointmentSetterSchema, UpdateAppointmentSetterSchema,
                                             ChatWithAgent, LeadAnalyticsSchema, LeadStatus)
 from app.utils.user_auth import get_current_user
 from app.ai_agents.prompts import Prompts
 from app.ai_agents.appointment_setter import initialise_agent, message_reply_by_agent
+from app.utils.instagram import instagram_send_message
+from app.utils.whatsapp import whatsapp_send_messages
 from app.utils.knowledge_base import fetch_text
 
 router = APIRouter(tags=['appointment_agent'])
@@ -108,11 +110,17 @@ def updating_status_of_appointment_agent(agent_id,  db: Session = Depends(get_db
     if agent:
         if agent.is_active == False:
             agent.is_active = True
+            chats = db.query(LeadAnalytics).filter_by(agent_id=agent.id).all()
+            for chat in chats:
+                chat.agent_is_enabled=True
             db.commit()
             return JSONResponse(content={'success': 'status updated for agent'}, status_code=200)
         
         if agent.is_active == True:
             agent.is_active = False
+            chats = db.query(LeadAnalytics).filter_by(agent_id=agent.id).all()
+            for chat in chats:
+                chat.agent_is_enabled=False
             db.commit()
             return JSONResponse(content={'success': 'status updated for agent'}, status_code=200)
     return JSONResponse(content={'error': 'Agent does not exist'}, status_code=404)
@@ -181,6 +189,22 @@ def chatting_with_lead(chat_id, payload: ChatWithAgent, db: Session = Depends(ge
     chat.chat_history = history
     chat.updated_at = datetime.date.today()
     db.commit()
+    if chat.platform_unique_id != agent.platform_unique_id:
+        return JSONResponse(content={"error": "Cannot chat with lead as it was associated with a different platform before"}, status_code=400)
+    sequence = agent.sequence
+    platform = sequence.get('trigger')    
+    print(platform)
+    if platform == 'Instagram':
+        instagram = db.query(Instagram).filter_by(instagram_user_id=agent.platform_unique_id).first()
+        print("hjhbnmhbnmnbn")
+        access_token = instagram.access_token
+        lead = db.query(AppointmentAgentLeads).filter_by(id=chat.lead_id).first()
+        instagram_send_message(access_token, lead.lead_id, payload.message)
+    if platform == 'Whatsapp':
+        whatsapp = db.query(Whatsapp).filter_by(instagram_user_id=agent.platform_unique_id).first()
+        access_token = whatsapp.access_token
+        lead = db.query(AppointmentAgentLeads).filter_by(id=chat.lead_id).first()
+        whatsapp_send_messages(access_token, whatsapp.whatsapp_phone_id, lead.lead_id, payload.message)
     return JSONResponse({"success": chat_history}, status_code=200)
     
 @router.get("/get-chats")
@@ -233,7 +257,7 @@ def change_agent_enabled_status(chat_id, db: Session = Depends(get_db), user_id:
             chat.agent_is_enabled = False
             db.commit()
             return JSONResponse(content={'success': 'status updated for agent'}, status_code=200)
-    return JSONResponse(content={'error': 'Chat does not exist'}, status_code=404)
+    return JSONResponse(content={'error': 'Cannot change status of chat '}, status_code=404)
 
 @router.get("/get-lead-analytics")
 def get_lead_analytics(lead_params: LeadAnalyticsSchema = Depends(), db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
@@ -315,45 +339,6 @@ def test_agent(agent_id, payload: ChatWithAgent, db: Session = Depends(get_db), 
 
     return JSONResponse({"response": response}, status_code=200)
 
-
-@router.post("/duplicate-appointment-setter/{agent_id}")
-def duplicate_a_agent(agent_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
-    user = db.query(User).filter_by(id=user_id).first()
-    
-    if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)  
-    
-    agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
-    
-    if agent:
-        agent_info = {
-            'agent_name': agent.agent_name,
-            'age': agent.age,
-            'gender': agent.gender,
-            'prompt': agent.prompt,
-            'agent_personality': agent.agent_personality,
-            'agent_language': agent.agent_language,
-            'business_description': agent.business_description,
-            'whatsapp_number': agent.whatsapp_number,
-            'your_business_offer': agent.your_business_offer,
-            'qualification_questions': agent.qualification_questions,
-            'platform_unique_id': agent.platform_unique_id,
-            'sequence': agent.sequence,
-            'objective_of_the_agent': agent.objective_of_the_agent,
-            'calendar_choosed': agent.calendar_choosed,
-            'webpage_link': agent.webpage_link,
-            'is_followups_enabled': agent.is_followups_enabled,
-            'follow_up_details': agent.follow_up_details,
-            'emoji_frequency': agent.emoji_frequency,
-            'is_active': agent.is_active,
-            'user_id': agent.user_id,
-            }
-
-        new_agent = AppointmentSetter(**agent_info, user_id=user_id)
-        db.add(new_agent)
-        db.commit()
-        return JSONResponse(content={'success': "appointment setter agent duplicated"}, status_code=201)
-    return JSONResponse(content={'error': 'appointment agent does not exist'}, status_code=404) 
         
         
         

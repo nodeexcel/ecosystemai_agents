@@ -1,6 +1,6 @@
 
 import requests, os, datetime, uuid
-from fastapi import Depends, Query, Request
+from fastapi import Depends, Query
 from fastapi.routing import APIRouter
 from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse
 
@@ -136,7 +136,7 @@ def instagram_message_webhook(request: InstagramMessageAlert, db: Session = Depe
     chat_history['user'] = text
     if not lead_chat:
         thread_id = uuid.uuid4()
-        lead_chat = LeadAnalytics(lead_id=lead.id, agent_id=agent_id, thread_id=thread_id)
+        lead_chat = LeadAnalytics(lead_id=lead.id, agent_id=agent_id, thread_id=thread_id, platform_unique_id=instagram_user.instagram_user_id)
         db.add(lead_chat)
         db.commit()
         
@@ -148,7 +148,7 @@ def instagram_message_webhook(request: InstagramMessageAlert, db: Session = Depe
     lead_chat.chat_history = chat
     db.commit()
     
-    if agent.is_active == False or lead_chat.agent_is_enabled == False:
+    if lead_chat.agent_is_enabled == False:
         return JSONResponse({"sucess": ""}, status_code=200)
     
     knowledge_base = fetch_text(text, agent.user_id)

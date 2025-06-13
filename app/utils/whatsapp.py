@@ -85,7 +85,7 @@ def whatsapp_send_messages(access_token, sender_phone_id, lead_id, response):
     
     requests.post(url, headers=headers, json=data)
     
-def invalid_whatsapp_send_messages(access_token, sender_phone_id, lead_id, response):
+def invalid_whatsapp_send_messages(access_token, sender_phone_id, lead_id):
     
     url = f"https://graph.facebook.com/v22.0/{sender_phone_id}/messages"
     

@@ -46,6 +46,7 @@ class LeadAnalytics(Base):
     lead_id = Column(Integer, ForeignKey("appointment_agent_leads.id", ondelete="SET NULL"))
     agent_is_enabled = Column(Boolean, default=True)
     status = Column(String, nullable=True)
+    platform_unique_id = Column(String, nullable=True)
     created_at = Column(Date, default=datetime.date.today())
     updated_at = Column(Date)
      
