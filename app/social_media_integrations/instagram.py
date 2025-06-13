@@ -197,9 +197,10 @@ def delete_connected_insta_accounts(instagram_id, db: Session = Depends(get_db),
                                      Either delete agent or relink with another account."""}, status_code=400)
 
     account = db.query(Instagram).filter_by(instagram_user_id=instagram_id, user_id=user_id).first()
-    if account:
-        db.delete(account)
-        db.commit()
+    if not account:
+        return JSONResponse(content={"success": "Not authorized to delete the account"}, status_code=403)
+    db.delete(account)
+    db.commit()
     return JSONResponse(content={"success": "account deleted successfully"}, status_code=200)
         
 

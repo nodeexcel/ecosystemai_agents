@@ -195,8 +195,9 @@ def delete_connected_whatsapp_accounts(whatsapp_id, db: Session = Depends(get_db
                                      Either delete agent or relink with another account."""}, status_code=400)
 
     account = db.query(Whatsapp).filter_by(whatsapp_phone_id=whatsapp_id, user_id=user_id).first()
-    if account:
-        db.delete(account)
-        db.commit()
+    if not account:
+        return JSONResponse(content={"success": "Not authorized to delete the account"}, status_code=403)
+    db.delete(account)
+    db.commit()
     return JSONResponse(content={"success": "account deleted successfully"}, status_code=200)
 

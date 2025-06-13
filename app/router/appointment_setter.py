@@ -27,14 +27,18 @@ def create_appointment_setter_agent(payload: AppointmentSetterSchema, db: Sessio
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
+    if payload.objective_of_the_agent == "book_a_meeting":
+        if payload.calendar_choosed is None or payload.calendar_id is None:
+            return JSONResponse(content={'error': "Please procide calendar details"}, status_code=422)
+    
     if payload.objective_of_the_agent == "web_page":
         if payload.webpage_link is None or payload.webpage_type is None:
-            return JSONResponse(content={'error': "Invalid data provided"}, status_code=422)
+            return JSONResponse(content={'error': "Please provide webpage details"}, status_code=422)
         
     trigger_platform = payload.sequence.trigger
         
     if trigger_platform != payload.sequence.channel:
-        return JSONResponse(content={'error': "Invalid data provided hyuioiuyhg"}, status_code=422)
+        return JSONResponse(content={'error': "Invalid data provided"}, status_code=422)
     
     connected_account = db.query(AppointmentSetter).filter_by(platform_unique_id=payload.platform_unique_id).first()
     if connected_account:
@@ -131,6 +135,10 @@ def updating_appointment_agent(agent_id, payload: UpdateAppointmentSetterSchema,
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
+    if payload.objective_of_the_agent == "book_a_meeting":
+        if payload.calendar_choosed is None or payload.calendar_id is None:
+            return JSONResponse(content={'error': "Please procide calendar details"}, status_code=422)
+    
     trigger_platform = payload.sequence.trigger
         
     if trigger_platform != payload.sequence.channel:
@@ -193,10 +201,8 @@ def chatting_with_lead(chat_id, payload: ChatWithAgent, db: Session = Depends(ge
         return JSONResponse(content={"error": "Cannot chat with lead as it was associated with a different platform before"}, status_code=400)
     sequence = agent.sequence
     platform = sequence.get('trigger')    
-    print(platform)
     if platform == 'Instagram':
         instagram = db.query(Instagram).filter_by(instagram_user_id=agent.platform_unique_id).first()
-        print("hjhbnmhbnmnbn")
         access_token = instagram.access_token
         lead = db.query(AppointmentAgentLeads).filter_by(id=chat.lead_id).first()
         instagram_send_message(access_token, lead.lead_id, payload.message)

@@ -20,6 +20,7 @@ class AppointmentSetter(Base):
     sequence = Column(JSONB, nullable=False)
     objective_of_the_agent = Column(String, nullable=False)
     calendar_choosed = Column(String, nullable=True)
+    calendar_id = Column(String, nullable=True)
     webpage_link = Column(String, nullable=True)
     whatsapp_number = Column(String, nullable=True)
     prompt = Column(String, nullable=False)

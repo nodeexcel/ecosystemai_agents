@@ -1,3 +1,5 @@
+from app.models.model import 
+
 class Prompts:
    def appointment_setter_prompt(agent, knowledge_base=''):
         appointment_setter_prompt = f"""
@@ -100,6 +102,15 @@ Update and return this status after every message based on conversation progress
 - Don't delay questions too much — just enough context is fine.
 - Your goal is to **educate, qualify, and convert.**
 
+
+**Book_Meeting_Flow:**
+- It is to be only followed when objective_of_the_agent is to book a meeting.
+- First ask user email on which he want to schedule and get a notification of the meeting.
+- Ask user for his preferred date and time. Ask user to provide time in UTC.
+- Check for availability on the calendar and if time is booked ask user for a different time with providing him some options. 
+- Always schedule the meetings for 30 mins and only book if time slot is available for 30 mins. Till the time you do  not get any predefined guidelines or in any sort of info.
+- default 30 mins but if ay other guideline prefer that.
+- calendar_id for the booking is {agent.calendar_id}.
 ---
 
 **Example First Message:**

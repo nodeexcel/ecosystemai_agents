@@ -1,13 +1,16 @@
 import datetime
 from fastapi import Depends
 from fastapi.routing import APIRouter
-from fastapi.responses import Response, RedirectResponse
+from fastapi.responses import Response, RedirectResponse, JSONResponse
 
 from sqlalchemy.orm import Session
 
 from app.models.get_db import get_db
-from app.models.social_media_integrations import Google_Calendar
-from app.utils.google_calendar import get_access_token, get_user_info, get_calendar, get_freebusy_time
+from app.models.model import User
+from app.models.appointment_setter import AppointmentSetter
+from app.models.social_media_integrations import GoogleCalendar
+from app.utils.user_auth import get_current_user
+from app.utils.google_calendar import get_access_token, get_user_info, get_calendar, get_freebusy_time, create_meeting
 
 router =  APIRouter(tags=['google-calendar'])
 
@@ -35,27 +38,67 @@ def google_callback(code, state, db: Session = Depends(get_db)):
     
     name = user_info.get("name")
     email = user_info.get("email")
-    google_id = user_info.get("sub")
     
-    response = get_calendar(access_token)
+    items = get_calendar(access_token)
     
-    timezone = response.get('timeZone')
+    for item in items:
+        calendar_id = item.get('id')
     
-    calendar = db.query(Google_Calendar).filter_by(google_id=google_id).first()
-    
-    if calendar:
-        calendar.access_token = access_token
-        calendar.refresh_token = refresh_token
-        calendar.name = name
-        calendar.expiry_time = refresh_token_expires_in
-    
-    else:
-        calendar = Google_Calendar(google_id=google_id, email=email, calendar_id='primary', name=name, access_token=access_token
-                                , refresh_token=refresh_token, timezone=timezone, expiry_time=expiry_time, user_id=state)
-        db.add(calendar)
-        db.commit()
-    get_freebusy_time(access_token)
+        timezone = item.get('timeZone')
+        
+        
+        calendar = db.query(GoogleCalendar).filter_by(calendar_id=calendar_id).first()
+        
+        if calendar:
+            calendar.access_token = access_token
+            calendar.refresh_token = refresh_token
+            calendar.name = name
+            
+            time_delta = datetime.timedelta(seconds=refresh_token_expires_in)
+            expiry_time = datetime.datetime.now(datetime.timezone.utc) + time_delta
+            
+            calendar.expiry_time = expiry_time
+        
+        else:
+            calendar = GoogleCalendar(calendar_id=calendar_id, email=email, name=name, access_token=access_token
+                                    , refresh_token=refresh_token, timezone=timezone, expiry_time=expiry_time, user_id=state)
+            db.add(calendar)
+            db.commit()
+    # get_freebusy_time(access_token)
+    # create_meeting(access_token)
     return RedirectResponse(url="http://116.202.210.102:3089/dashboard/brain", status_code=303)
+
+@router.get("/get-calendar-accounts")
+def get_google_calendar_accounts(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+
+    accounts = db.query(GoogleCalendar).filter_by(user_id=user_id).all()
+    account_info = []
+    for account in accounts:
+        google_calendar_detail = {}
+        google_calendar_detail['google_calendar_id'] = account.calendar_id
+        account_info.append(google_calendar_detail)
+    return JSONResponse(content={"google_calendar_info": account_info}, status_code=200)
+
+@router.delete("/delete-google-calendar-account/{calendar_id}")
+def delete_connected_insta_accounts(calendar_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    agent = db.query(AppointmentSetter).filter_by(calendar_id=calendar_id).first()
+    if agent:
+        return JSONResponse(content={"success": f"""The id is linked with {agent.agent_name}.
+                                     Either delete agent or relink with another account."""}, status_code=400)
+
+    account = db.query(GoogleCalendar).filter_by(calendar_id=calendar_id, user_id=user_id).first()
+    if not account:
+        return JSONResponse(content={"success": "Not authorized to delete the account"}, status_code=403)
+    db.delete(account)
+    db.commit()
+    return JSONResponse(content={"success": "account deleted successfully"}, status_code=200)
 
 
     

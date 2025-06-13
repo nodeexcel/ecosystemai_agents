@@ -26,7 +26,7 @@ def get_user_info(token: str):
     
 def get_calendar(access_token):
     
-    url = "https://www.googleapis.com/calendar/v3/users/me/calendarList/primary"
+    url = "https://www.googleapis.com/calendar/v3/users/me/calendarList"
     
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -35,7 +35,11 @@ def get_calendar(access_token):
     
     response = requests.get(url, headers=headers)
     
-    return response.json()
+    response = response.json()
+    
+    calendars_list = response.get('items')
+    
+    return calendars_list
     
 def refresh_access_token(refresh_token):
     url = "https://oauth2.googleapis.com/token"
@@ -52,10 +56,10 @@ def refresh_access_token(refresh_token):
     if response.status_code == 400:
         return "Authentication is needed again"
     
-    return response
+    return response.json()
 
 
-def get_freebusy_time(access_token):
+def get_freebusy_time(access_token, calendar_id, date):
     url = "https://www.googleapis.com/calendar/v3/freeBusy"
     
     headers = {
@@ -63,19 +67,47 @@ def get_freebusy_time(access_token):
         "Content-Type": "application/json"
     }
     
+    timeMin = date + "T9:00:00Z'"
+    timeMax = date + "T19:30:00Z"
+    
     payload = {
-        "timeMin": '2025-06-13T10:30:00',
-        "timeMax": '2025-06-13T19:30:00',
-        "timeZone": 'Asia/Kolkata',
+        "timeMin": timeMin,
+        "timeMax": timeMax,
         "items": [
             {
-            "id": "primary"
+            "id": calendar_id
             }
         ]
     }
     
     response = requests.post(url, headers=headers, json=payload)
     
+    return response
+    
+def create_meeting(access_token, calendar_id):
+    url = f"https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/events"
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "summary": "Meeting with Atul",
+        "description": "Discussion on project updates.",
+        "start": {
+            "dateTime": "2025-06-13T15:00:00Z",
+            "timeZone": "Asia/Kolkata"
+        },
+        "end": {
+            "dateTime": "2025-06-13T16:00:00Z",
+            "timeZone": "Asia/Kolkata"
+        },
+        "attendees": [
+            { "email": "aayush.excel2011@gmail.com" }
+        ],
+        }
+        
+    response = requests.post(url, headers=headers, json=payload)
+    
     print(response.text)
-    
-    

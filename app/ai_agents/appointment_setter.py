@@ -6,6 +6,11 @@ from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 from typing import Optional
 
+from app.models.social_media_integrations import GoogleCalendar
+from app.utils.google_calendar import get_freebusy_time, refresh_access_token, create_meeting
+from app.models.model import SessionLocal
+
+
 from psycopg_pool import ConnectionPool
 from dotenv import load_dotenv
 
@@ -39,7 +44,7 @@ def initialise_agent(prompt):
     
     appointment_agent = create_react_agent(
         model=model,
-        tools=[book_meeting],
+        tools=[get_busy_time],
         prompt=prompt,
         checkpointer=checkpointer,
         response_format=AppointmentAgentResponse
@@ -52,7 +57,6 @@ def message_reply_by_agent(appointment_agent, user_query, thread_id):
     config = {"configurable": {"thread_id": thread_id}}
     response = appointment_agent.invoke({"messages": [{"role": "user", "content": user_query}]},
                                         config=config)
-    print(response)
     ai_response = response["messages"][-1].content
     ai_response = json.loads(ai_response)
     
@@ -60,6 +64,27 @@ def message_reply_by_agent(appointment_agent, user_query, thread_id):
 
 
 @tool
+def get_busy_time(calendar_id: str, date: str)-> list:
+    """This function is for getting the already busy or booked time of the calendar and hence you need to calculate free time.
+    This will completely tell about all the meetings that are schduled for the day and is busy time.
+    calendar_id is the id of the calendar integrated
+    date is given by the user for scheduling in YYYY-MM-DD"""
+    
+    db = SessionLocal()
+    calendar = db.query(GoogleCalendar).filter_by(calendar_id=calendar_id).first()
+    
+    access_token = calendar.access_token
+    response = get_freebusy_time(access_token, calendar_id, date)
+    if response.status_code == 401:
+        response = refresh_access_token(calendar.refresh_token)
+        calendar.access_token = response.get('access_token')
+        db.commit()
+        response = get_freebusy_time(calendar.access_token, calendar_id, date)
+    response = response.json()
+    busy_time = response["calendars"][calendar_id]['busy']
+    
+    return busy_time
+
+@tool
 def book_meeting():
-    """return meeting timing"""
-    return "5:30"
+    create_meeting()

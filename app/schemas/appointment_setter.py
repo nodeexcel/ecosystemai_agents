@@ -27,7 +27,8 @@ class AppointmentSetterSchema(BaseModel):
     qualification_questions: list[str]
     sequence: Sequence
     objective_of_the_agent: Optional[str]
-    calendar_choosed: Optional[str] = "calendly"
+    calendar_choosed: Optional[str] = "google_calendar"
+    calendar_id: Optional[str]
     webpage_link: Optional[str]
     is_followups_enabled: bool = False
     follow_up_details: FollowUPConfig
@@ -47,6 +48,7 @@ class UpdateAppointmentSetterSchema(BaseModel):
     platform_unique_id: str = None
     objective_of_the_agent: Optional[str] = None
     calendar_choosed: Optional[str] = None
+    calendar_id: Optional[str] = None
     webpage_link: Optional[str] = None
     whatsapp_number: Optional[str] = None
     is_followups_enabled: Optional[bool] = None
