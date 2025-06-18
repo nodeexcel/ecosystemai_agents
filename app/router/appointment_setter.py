@@ -93,6 +93,7 @@ def get_appointment_setter_agent_details(agent_id, db: Session = Depends(get_db)
             'your_business_offer': agent.your_business_offer,
             'qualification_questions': agent.qualification_questions,
             'platform_unique_id': agent.platform_unique_id,
+            'google_calendar_id': agent.calendar_id,
             'sequence': agent.sequence,
             'objective_of_the_agent': agent.objective_of_the_agent,
             'calendar_choosed': agent.calendar_choosed,
@@ -145,7 +146,7 @@ def updating_appointment_agent(agent_id, payload: UpdateAppointmentSetterSchema,
         return JSONResponse(content={'error': "Invalid data provided"}, status_code=422)
     
     connected_account = db.query(AppointmentSetter).filter_by(platform_unique_id=payload.platform_unique_id).first()
-    if connected_account:
+    if connected_account and connected_account.platform_unique_id != payload.platform_unique_id:
         return JSONResponse(content={'error': "This account is already connected to a agent."}, status_code=400)
     
     agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()

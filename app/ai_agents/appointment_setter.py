@@ -44,7 +44,7 @@ def initialise_agent(prompt):
     
     appointment_agent = create_react_agent(
         model=model,
-        tools=[get_busy_time],
+        tools=[book_meeting, get_calendar_schedule],
         prompt=prompt,
         checkpointer=checkpointer,
         response_format=AppointmentAgentResponse
@@ -64,11 +64,39 @@ def message_reply_by_agent(appointment_agent, user_query, thread_id):
 
 
 @tool
-def get_busy_time(calendar_id: str, date: str)-> list:
-    """This function is for getting the already busy or booked time of the calendar and hence you need to calculate free time.
+def book_meeting(calendar_id, start_time, end_time, email, summary, description):
+    """schedule a meeting with the client.
+    calendar_id is the id of the calendar integrated
+    start_time is the start time of time meeting finally available and decided format YYYY-MM--DDTHH:MM::SSZ
+    end_time usually keeo it after 30 mins from start time or with nay other preference format YYYY-MM--DDTHH:MM::SSZ
+    email is the recipient email id
+    summary is the heading of the meeting it is about what meeting is scheduled and should be in 4-5 words maxx.
+    description is the 10-15 words description about what the meeting is for and what it will do."""
+    db = SessionLocal()
+    calendar = db.query(GoogleCalendar).filter_by(calendar_id=calendar_id).first()
+    access_token = calendar.access_token
+    response = create_meeting(calendar_id, access_token, start_time, end_time, email, summary, description)
+    
+    if response.status_code == 401:
+        response = refresh_access_token(calendar.refresh_token)
+        calendar.access_token = response.get('access_token')
+        db.commit()
+        response = create_meeting(access_token, calendar_id, start_time, end_time, email, summary, description)
+        
+        print(response.text)
+        
+        if response.status_code == 200:
+            return "success"
+
+
+@tool
+def get_calendar_schedule(calendar_id: str, date: str)-> list:
+    """This function is only to check the busy schedule of the client and to check if any meeting is schedules or not.
     This will completely tell about all the meetings that are schduled for the day and is busy time.
     calendar_id is the id of the calendar integrated
-    date is given by the user for scheduling in YYYY-MM-DD"""
+    date is given by the user for scheduling in YYYY-MM-DD
+    
+    Output: It returns the busy time in a day like on ehat time calls are already scheduled. So if it is empty it does mean that whole day is available to schdue a call."""
     
     db = SessionLocal()
     calendar = db.query(GoogleCalendar).filter_by(calendar_id=calendar_id).first()
@@ -84,7 +112,3 @@ def get_busy_time(calendar_id: str, date: str)-> list:
     busy_time = response["calendars"][calendar_id]['busy']
     
     return busy_time
-
-@tool
-def book_meeting():
-    create_meeting()

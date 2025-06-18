@@ -20,6 +20,8 @@ def user_authorization(code):
 
 def long_lived_access_token(short_lived_access_token):
     
+    print(short_lived_access_token)
+        
     access_token_params = {
         "grant_type": "ig_exchange_token",
         "client_secret": os.getenv("INSTAGRAM_CLIENT_SECRET"),

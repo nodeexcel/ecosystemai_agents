@@ -1,5 +1,3 @@
-from app.models.model import 
-
 class Prompts:
    def appointment_setter_prompt(agent, knowledge_base=''):
         appointment_setter_prompt = f"""
@@ -306,3 +304,4 @@ If the user is asking for a complex or difficult which you cannot resolve so you
 
 You donot need indulge with user with unnecessary chat or waste any time.
 """
+      return phone_agent_prompt

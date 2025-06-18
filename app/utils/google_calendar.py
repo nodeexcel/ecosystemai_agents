@@ -67,8 +67,8 @@ def get_freebusy_time(access_token, calendar_id, date):
         "Content-Type": "application/json"
     }
     
-    timeMin = date + "T9:00:00Z'"
-    timeMax = date + "T19:30:00Z"
+    timeMin = date + "T00:00:00Z"
+    timeMax = date + "T23:30:00Z"
     
     payload = {
         "timeMin": timeMin,
@@ -81,11 +81,11 @@ def get_freebusy_time(access_token, calendar_id, date):
     }
     
     response = requests.post(url, headers=headers, json=payload)
-    
+        
     return response
     
-def create_meeting(access_token, calendar_id):
-    url = f"https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/events"
+def create_meeting(access_token, calendar_id, start_time, end_time, email, summary, description):
+    url = f"https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/events?sendNotifications=true"
     
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -93,21 +93,22 @@ def create_meeting(access_token, calendar_id):
     }
     
     payload = {
-        "summary": "Meeting with Atul",
-        "description": "Discussion on project updates.",
+        "summary": summary,
+        "description": description,
         "start": {
-            "dateTime": "2025-06-13T15:00:00Z",
-            "timeZone": "Asia/Kolkata"
-        },
+            "dateTime": start_time,
+            },
         "end": {
-            "dateTime": "2025-06-13T16:00:00Z",
-            "timeZone": "Asia/Kolkata"
+            "dateTime": end_time,
         },
         "attendees": [
-            { "email": "aayush.excel2011@gmail.com" }
+            { "email": email}
         ],
+        "reminders": {
+            "useDefault": True
         }
-        
+        }
+            
     response = requests.post(url, headers=headers, json=payload)
     
-    print(response.text)
+    return response

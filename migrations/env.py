@@ -12,6 +12,7 @@ from app.models.contacts import Contacts
 from app.models.appointment_setter import AppointmentSetter
 from app.models.phone_agent import PhoneCampaign
 from app.models.social_media_integrations import Instagram
+from app.models.account_agent import AccountChatHistory
 
 from dotenv import load_dotenv
 

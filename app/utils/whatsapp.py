@@ -18,13 +18,14 @@ def generate_short_lived_access_token(code):
     
     return response, status
 
-def long_lived_access_token(acceess_token):
+def long_lived_access_token(access_token):
     
+    print(access_token)
     params = {
         'grant_type': "fb_exchange_token",
         'client_id': os.getenv('FACEBOOK_CLIENT_ID'),
         'client_secret': os.getenv('FACEBOOK_CLIENT_SECRET'),
-        'fb_exchange_token': acceess_token
+        'fb_exchange_token': access_token
     }
     
     response = requests.get("https://graph.facebook.com/v22.0/oauth/access_token", params=params)
