@@ -82,9 +82,7 @@ def book_meeting(calendar_id, start_time, end_time, email, summary, description)
         calendar.access_token = response.get('access_token')
         db.commit()
         response = create_meeting(access_token, calendar_id, start_time, end_time, email, summary, description)
-        
-        print(response.text)
-        
+            
         if response.status_code == 200:
             return "success"
 

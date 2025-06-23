@@ -62,9 +62,13 @@ def get_appointment_setter_agents(db: Session = Depends(get_db), user_id: str = 
     
     agents_info = []
     for agent in agents:
+        sequence = agent.sequence
+        channel = sequence.get('trigger')
         agent_info = {
             'agent_id': agent.id,
             'agent_name': agent.agent_name,
+            'agent_channel': channel,
+            'agent_language': agent.agent_language,
             'is_active': agent.is_active
         }
         agents_info.append(agent_info)
