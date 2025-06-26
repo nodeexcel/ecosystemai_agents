@@ -14,6 +14,7 @@ from app.models.phone_agent import PhoneCampaign
 from app.models.social_media_integrations import Instagram
 from app.models.account_agent import AccountChatHistory
 from app.models.seo_agent import SeoChatHistory
+from app.models.coo_agent import CooChatHistory
 
 from dotenv import load_dotenv
 

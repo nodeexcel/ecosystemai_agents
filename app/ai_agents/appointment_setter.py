@@ -1,7 +1,6 @@
 import os, json
 from langchain.chat_models import init_chat_model
 from langgraph.prebuilt import create_react_agent
-from langgraph.checkpoint.postgres import PostgresSaver
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -9,28 +8,7 @@ from typing import Optional
 from app.models.social_media_integrations import GoogleCalendar
 from app.utils.google_calendar import get_freebusy_time, refresh_access_token, create_meeting
 from app.models.model import SessionLocal
-
-
-from psycopg_pool import ConnectionPool
-from dotenv import load_dotenv
-
-load_dotenv()
-
-DB_URI = os.getenv("SQLALCHEMY_DATABASE_URL")
-
-connection_kwargs = {
-    "autocommit": True,
-    "prepare_threshold": 0,
-}
-
-pool = ConnectionPool(
-    conninfo=DB_URI,
-    max_size=20,
-    kwargs=connection_kwargs,
-)
-checkpointer = PostgresSaver(pool)
-
-checkpointer.setup()
+from app.models.checkpointer_agent import checkpointer
 
 class AppointmentAgentResponse(BaseModel):
     response: str

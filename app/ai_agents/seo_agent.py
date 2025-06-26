@@ -1,24 +1,7 @@
-import os, json
+import json
 from langchain.chat_models import init_chat_model
 from langgraph.prebuilt import create_react_agent
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from psycopg_pool import AsyncConnectionPool
-
-
-from dotenv import load_dotenv
-
-load_dotenv()
-
-DB_URI = os.getenv("SQLALCHEMY_DATABASE_URL")
-
-connection_kwargs = {
-    "autocommit": True,
-    "prepare_threshold": 0,
-}
-
-async_pool = AsyncConnectionPool(DB_URI, kwargs=connection_kwargs)
-
-checkpointer = AsyncPostgresSaver(async_pool)
+from app.models.checkpointer_agent import async_checkpointer
     
 async def initialise_agent(prompt):
     model = init_chat_model(
@@ -30,7 +13,7 @@ async def initialise_agent(prompt):
         model=model,
         prompt=prompt,
         tools=[],
-        checkpointer=checkpointer,
+        checkpointer=async_checkpointer,
     )
     
     return account_agent
