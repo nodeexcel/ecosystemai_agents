@@ -42,10 +42,9 @@ async def coo_agent_chat(id: int, websocket: WebSocket):
                     await websocket.send_json({"error": "This conversation does not exist"})
                     await websocket.close()
                     return
+    
                 thread_id = chat.thread_id
-
-
-                prompt = Prompts.coo_agent_prompt()
+                prompt = Prompts.coo_agent_prompt(user.language)
                 accounting_agent = await initialise_agent(prompt)
                 response = await message_reply_by_agent(accounting_agent, data, thread_id)
 
@@ -97,7 +96,7 @@ async def new_coo_agent_chat(websocket: WebSocket):
                 chat.chat_history = chat_history
                 await db.commit()
 
-                prompt = Prompts.coo_agent_prompt()
+                prompt = Prompts.coo_agent_prompt(user.language)
                 accounting_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(accounting_agent, data, thread_id)
 

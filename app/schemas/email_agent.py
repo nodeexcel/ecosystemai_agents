@@ -7,7 +7,7 @@ class EmailCampaignCreation(BaseModel):
     campaign_objective: str
     main_subject: str
     cta_type: str
-    list_of_target: list[str]
+    list_of_target: list[int]
     desired_tone: str
     language: str
     send_time_window: str
@@ -28,7 +28,7 @@ class UpdateEmailCampaign(BaseModel):
     campaign_objective: Optional[str] = None
     main_subject: Optional[str] = None
     cta_type: Optional[str] = None
-    list_of_target: Optional[list[str]]
+    list_of_target: Optional[list[int]]
     desired_tone: Optional[str] = None
     language: Optional[str] = None
     send_time_window: Optional[str] = None

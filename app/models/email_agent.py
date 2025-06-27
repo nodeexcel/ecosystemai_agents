@@ -11,7 +11,7 @@ class EmailCampaign(Base):
     campaign_objective = Column(String, nullable=False)
     main_subject = Column(String, nullable=False)
     cta_type = Column(String, nullable=False)
-    list_of_target = Column(ARRAY(String), nullable=False)
+    list_of_target = Column(ARRAY(Integer), nullable=False)
     desired_tone = Column(String, nullable=False)
     language = Column(String, nullable=False)
     send_time_window = Column(String, nullable=False)

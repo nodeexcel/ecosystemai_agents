@@ -48,7 +48,7 @@ async def accounting_chat(id: int, websocket: WebSocket):
             is_valid = await check_message(message_check_prompt, data)
 
             if is_valid == "True":
-                prompt = Prompts.accounting_agent()
+                prompt = Prompts.accounting_agent(user.language)
                 accounting_agent = await initialise_agent(prompt)
                 response = await message_reply_by_agent(accounting_agent, data, thread_id)
 
@@ -113,7 +113,7 @@ async def new_accounting_chat(websocket: WebSocket):
             response = await check_message(message_check_prompt, data)
 
             if response == "True":
-                prompt = Prompts.accounting_agent()
+                prompt = Prompts.accounting_agent(user.language)
                 accounting_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(accounting_agent, data, thread_id)
 

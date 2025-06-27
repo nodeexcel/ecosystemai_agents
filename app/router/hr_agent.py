@@ -9,18 +9,18 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.models.get_db import get_async_db, get_db
 from app.models.model import User
-from app.models.seo_agent import SeoChatHistory
+from app.models.hr_agent import HrChatHistory
 from app.ai_agents.prompts import Prompts
 from app.utils.user_auth import get_user_id_from_websocket, get_current_user
-from app.ai_agents.seo_agent import initialise_agent, message_reply_by_agent
+from app.ai_agents.hr_agent import initialise_agent, message_reply_by_agent
 
-router = APIRouter(tags=["seo-agent"])
+router = APIRouter(tags=["hr-agent"])
 
 class NameUpdate(BaseModel):
     name: str
 
-@router.websocket("/seo-agent/{id}")
-async def seo_agent_chat(id: int, websocket: WebSocket):
+@router.websocket("/hr-agent/{id}")
+async def hr_agent_chat(id: int, websocket: WebSocket):
     await websocket.accept()
     token = websocket.query_params.get("token")
     user_id = await get_user_id_from_websocket(websocket, token)
@@ -37,7 +37,7 @@ async def seo_agent_chat(id: int, websocket: WebSocket):
             data = await websocket.receive_text()
 
             async with get_async_db() as db:
-                chat = await db.get(SeoChatHistory, id)
+                chat = await db.get(HrChatHistory, id)
                 if not chat:
                     await websocket.send_json({"error": "This conversation does not exist"})
                     await websocket.close()
@@ -45,12 +45,12 @@ async def seo_agent_chat(id: int, websocket: WebSocket):
                 thread_id = chat.thread_id
 
 
-                prompt = Prompts.seo_agent_prompt(user.language)
+                prompt = Prompts.hr_agent_prompt(user.language)
                 accounting_agent = await initialise_agent(prompt)
                 response = await message_reply_by_agent(accounting_agent, data, thread_id)
 
                 async with get_async_db() as db:
-                    chat = await db.get(SeoChatHistory, id)
+                    chat = await db.get(HrChatHistory, id)
                     chat_history = chat.chat_history
                     chat_history.append({'user': data})
                     chat_history.append({'agent': response})
@@ -64,8 +64,8 @@ async def seo_agent_chat(id: int, websocket: WebSocket):
             break
 
             
-@router.websocket("/new-seo-agent-chat")
-async def new_seo_agent_chat(websocket: WebSocket):
+@router.websocket("/new-hr-agent-chat")
+async def new_hr_agent_chat(websocket: WebSocket):
     await websocket.accept()
 
     token = websocket.query_params.get("token")
@@ -80,7 +80,7 @@ async def new_seo_agent_chat(websocket: WebSocket):
             return
 
         thread_id = uuid.uuid4()
-        chat = SeoChatHistory(thread_id=str(thread_id), name="Seo Agent Chat", user_id=user_id)
+        chat = HrChatHistory(thread_id=str(thread_id), name="Hr Agent Chat", user_id=user_id)
         db.add(chat)
         await db.commit()
         await db.refresh(chat)
@@ -91,18 +91,18 @@ async def new_seo_agent_chat(websocket: WebSocket):
             data = await websocket.receive_text()
 
             async with get_async_db() as db:
-                chat = await db.get(SeoChatHistory, chat_id)
+                chat = await db.get(HrChatHistory, chat_id)
                 chat_history = chat.chat_history
                 chat_history.append({'user': data})
                 chat.chat_history = chat_history
                 await db.commit()
 
-                prompt = Prompts.seo_agent_prompt(user.language)
+                prompt = Prompts.hr_agent_prompt(user.language)
                 accounting_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(accounting_agent, data, thread_id)
 
                 async with get_async_db() as db:
-                    chat = await db.get(SeoChatHistory, chat_id)
+                    chat = await db.get(HrChatHistory, chat_id)
                     chat_history = chat.chat_history
                     chat_history.append({'agent': ai_response})
                     chat.chat_history = chat_history
@@ -115,13 +115,13 @@ async def new_seo_agent_chat(websocket: WebSocket):
             break
         
 
-@router.get("/get-seo-chats")
-def get_seo_chats(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+@router.get("/get-hr-chats")
+def get_hr_chats(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
-    chats = db.query(SeoChatHistory).filter_by(user_id=user_id).all()
+    chats = db.query(HrChatHistory).filter_by(user_id=user_id).all()
     response = []
     if chats:
         for chat in chats:
@@ -134,13 +134,13 @@ def get_seo_chats(db: Session = Depends(get_db), user_id: str = Depends(get_curr
         return JSONResponse(content={'success': response}, status_code=200)
     return JSONResponse(content={'success': []}, status_code=200)
 
-@router.get("/get-seo-chat/{chat_id}")
-def get_seo_chat_history(chat_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+@router.get("/get-hr-chat/{chat_id}")
+def get_hr_chat_history(chat_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
-    chat = db.query(SeoChatHistory).filter_by(id=chat_id).first()
+    chat = db.query(HrChatHistory).filter_by(id=chat_id).first()
     
     if not chat:
         return JSONResponse(content={'error': 'Chat does not exist'}, status_code=404)
@@ -148,13 +148,13 @@ def get_seo_chat_history(chat_id, db: Session = Depends(get_db), user_id: str = 
     return JSONResponse(content={'success': chat.chat_history}, status_code=200)
         
         
-@router.patch("/update-seo-chat-name/{chat_id}")
-def update_seo_chat_name(chat_id, payload: NameUpdate, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+@router.patch("/update-hr-chat-name/{chat_id}")
+def update_hr_chat_name(chat_id, payload: NameUpdate, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
-    chat = db.query(SeoChatHistory).filter_by(id=chat_id).first()
+    chat = db.query(HrChatHistory).filter_by(id=chat_id).first()
     
     if not chat:
         return JSONResponse(content={'error': 'Chat does not exist'}, status_code=404)
@@ -164,13 +164,13 @@ def update_seo_chat_name(chat_id, payload: NameUpdate, db: Session = Depends(get
             
     return JSONResponse(content={'success': "name updated successfully"}, status_code=200)
 
-@router.delete("/delete-seo-chat/{chat_id}")
-def delete_seo_chat(chat_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+@router.delete("/delete-hr-chat/{chat_id}")
+def delete_hr_chat(chat_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
-    chat = db.query(SeoChatHistory).filter_by(id=chat_id).first()
+    chat = db.query(HrChatHistory).filter_by(id=chat_id).first()
     
     if not chat:
         return JSONResponse(content={'error': 'Chat does not exist'}, status_code=404)

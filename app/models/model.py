@@ -50,6 +50,7 @@ class User(Base):
     subscriptionEndDate = Column(DateTime, nullable=True)
     subscriptionStartDate = Column(DateTime, nullable=True)
     subscriptionUpdatedAt = Column(DateTime, nullable=True)
+    language = Column(String, default="english")
     created_at = Column(DateTime, default=datetime.datetime.now())
     
 class Team(Base):
