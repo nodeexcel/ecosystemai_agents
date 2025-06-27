@@ -43,12 +43,13 @@ async def accounting_chat(id: int, websocket: WebSocket):
                     await websocket.close()
                     return
                 thread_id = chat.thread_id
+                language = user.language
 
             message_check_prompt = Prompts.accounting_agent_query_check()
             is_valid = await check_message(message_check_prompt, data)
 
             if is_valid == "True":
-                prompt = Prompts.accounting_agent(user.language)
+                prompt = Prompts.accounting_agent(language)
                 accounting_agent = await initialise_agent(prompt)
                 response = await message_reply_by_agent(accounting_agent, data, thread_id)
 
@@ -90,6 +91,7 @@ async def new_accounting_chat(websocket: WebSocket):
             await websocket.send_json({"error": "User does not exist"})
             await websocket.close()
             return
+        language = user.language
 
         thread_id = uuid.uuid4()
         chat = AccountChatHistory(thread_id=str(thread_id), name="Accounting Chat", user_id=user_id)
@@ -113,7 +115,7 @@ async def new_accounting_chat(websocket: WebSocket):
             response = await check_message(message_check_prompt, data)
 
             if response == "True":
-                prompt = Prompts.accounting_agent(user.language)
+                prompt = Prompts.accounting_agent(language)
                 accounting_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(accounting_agent, data, thread_id)
 

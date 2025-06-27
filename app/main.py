@@ -2,7 +2,8 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .router import appointment_setter, knowledge_base, email_agent, phone_agent, account_agent, seo_agent, coo_agent
+from .router import (appointment_setter, knowledge_base, email_agent,
+                     phone_agent, account_agent, seo_agent, coo_agent, hr_agent)
 from .social_media_integrations import instagram
 from .social_media_integrations import whatsapp
 from .social_media_integrations import google_calendar

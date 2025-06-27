@@ -31,6 +31,7 @@ async def hr_agent_chat(id: int, websocket: WebSocket):
             await websocket.send_json({"error": "User does not exist"})
             await websocket.close()
             return
+        language = user.language
 
     while True:
         try:
@@ -45,9 +46,9 @@ async def hr_agent_chat(id: int, websocket: WebSocket):
                 thread_id = chat.thread_id
 
 
-                prompt = Prompts.hr_agent_prompt(user.language)
-                accounting_agent = await initialise_agent(prompt)
-                response = await message_reply_by_agent(accounting_agent, data, thread_id)
+                prompt = Prompts.hr_agent_prompt(language)
+                hr_agent = await initialise_agent(prompt)
+                response = await message_reply_by_agent(hr_agent, data, thread_id)
 
                 async with get_async_db() as db:
                     chat = await db.get(HrChatHistory, id)
@@ -78,6 +79,7 @@ async def new_hr_agent_chat(websocket: WebSocket):
             await websocket.send_json({"error": "User does not exist"})
             await websocket.close()
             return
+        language = user.language
 
         thread_id = uuid.uuid4()
         chat = HrChatHistory(thread_id=str(thread_id), name="Hr Agent Chat", user_id=user_id)
@@ -97,9 +99,9 @@ async def new_hr_agent_chat(websocket: WebSocket):
                 chat.chat_history = chat_history
                 await db.commit()
 
-                prompt = Prompts.hr_agent_prompt(user.language)
-                accounting_agent = await initialise_agent(prompt)
-                ai_response = await message_reply_by_agent(accounting_agent, data, thread_id)
+                prompt = Prompts.hr_agent_prompt(language)
+                hr_agent = await initialise_agent(prompt)
+                ai_response = await message_reply_by_agent(hr_agent, data, thread_id)
 
                 async with get_async_db() as db:
                     chat = await db.get(HrChatHistory, chat_id)
@@ -179,3 +181,4 @@ def delete_hr_chat(chat_id, db: Session = Depends(get_db), user_id: str = Depend
     db.commit()
             
     return JSONResponse(content={'success': "chat deleted successfully"}, status_code=200)
+

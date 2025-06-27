@@ -9,18 +9,18 @@ async def initialise_agent(prompt):
         temperature=1,
     )
     
-    account_agent = create_react_agent(
+    hr_agent = create_react_agent(
         model=model,
         prompt=prompt,
         tools=[],
         checkpointer=async_checkpointer,
     )
     
-    return account_agent
+    return hr_agent
 
-async def message_reply_by_agent(account_agent, user_query, thread_id):
+async def message_reply_by_agent(hr_agent, user_query, thread_id):
     config = {"configurable": {"thread_id": thread_id}}
-    response = account_agent.ainvoke({"messages": [{"role": "user", "content": user_query}]},
+    response = hr_agent.ainvoke({"messages": [{"role": "user", "content": user_query}]},
                                         config=config)
     response = await response
     ai_response = response["messages"][-1].content

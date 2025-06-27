@@ -31,6 +31,7 @@ async def seo_agent_chat(id: int, websocket: WebSocket):
             await websocket.send_json({"error": "User does not exist"})
             await websocket.close()
             return
+        language = user.language
 
     while True:
         try:
@@ -45,9 +46,9 @@ async def seo_agent_chat(id: int, websocket: WebSocket):
                 thread_id = chat.thread_id
 
 
-                prompt = Prompts.seo_agent_prompt(user.language)
-                accounting_agent = await initialise_agent(prompt)
-                response = await message_reply_by_agent(accounting_agent, data, thread_id)
+                prompt = Prompts.seo_agent_prompt(language)
+                seo_agent = await initialise_agent(prompt)
+                response = await message_reply_by_agent(seo_agent, data, thread_id)
 
                 async with get_async_db() as db:
                     chat = await db.get(SeoChatHistory, id)
@@ -79,6 +80,7 @@ async def new_seo_agent_chat(websocket: WebSocket):
             await websocket.close()
             return
 
+        language = user.language
         thread_id = uuid.uuid4()
         chat = SeoChatHistory(thread_id=str(thread_id), name="Seo Agent Chat", user_id=user_id)
         db.add(chat)
@@ -97,9 +99,9 @@ async def new_seo_agent_chat(websocket: WebSocket):
                 chat.chat_history = chat_history
                 await db.commit()
 
-                prompt = Prompts.seo_agent_prompt(user.language)
-                accounting_agent = await initialise_agent(prompt)
-                ai_response = await message_reply_by_agent(accounting_agent, data, thread_id)
+                prompt = Prompts.seo_agent_prompt(language)
+                seo_agent = await initialise_agent(prompt)
+                ai_response = await message_reply_by_agent(seo_agent, data, thread_id)
 
                 async with get_async_db() as db:
                     chat = await db.get(SeoChatHistory, chat_id)
