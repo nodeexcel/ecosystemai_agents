@@ -78,7 +78,7 @@ def get_google_calendar_accounts(db: Session = Depends(get_db), user_id: str = D
     account_info = []
     for account in accounts:
         google_calendar_detail = {}
-        google_calendar_detail['google_calendar_id'] = account.calendar_id
+        google_calendar_detail['calendar_id'] = account.calendar_id
         account_info.append(google_calendar_detail)
     return JSONResponse(content={"google_calendar_info": account_info}, status_code=200)
 

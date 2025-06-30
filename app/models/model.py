@@ -38,6 +38,7 @@ class User(Base):
     country = Column(String(50), nullable=True)
     role = Column(String(20), default='Admin')
     subscriptionType = Column(String(20), nullable=True)
+    countryCode = Column(String(20), nullable=True)
     paymentId = Column(String(100), nullable=True)
     activeProfile = Column(Boolean,  default=False)
     isProfileComplete = Column(Boolean, default=False)

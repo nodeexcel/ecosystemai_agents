@@ -17,46 +17,51 @@ from app.ai_agents.appointment_setter import initialise_agent, message_reply_by_
 from app.utils.instagram import instagram_send_message
 from app.utils.whatsapp import whatsapp_send_messages
 from app.utils.knowledge_base import fetch_text
+from app.services.babel import get_translator_dependency
 
 router = APIRouter(tags=['appointment_agent'])
 
 @router.post("/appointment-setter")
-def create_appointment_setter_agent(payload: AppointmentSetterSchema, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
-    """This endpoint is used to create a appointmebt setter agent."""
+def create_appointment_setter_agent(payload: AppointmentSetterSchema, db: Session = Depends(get_db),
+                                user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    """This endpoint is used to create a appointment setter agent."""
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     if payload.objective_of_the_agent == "book_a_meeting":
         if payload.calendar_choosed is None or payload.calendar_id is None:
-            return JSONResponse(content={'error': "Please procide calendar details"}, status_code=422)
+            return JSONResponse(content={'error': _("Please provide calendar details")}, status_code=422)
     
     if payload.objective_of_the_agent == "web_page":
         if payload.webpage_link is None or payload.webpage_type is None:
-            return JSONResponse(content={'error': "Please provide webpage details"}, status_code=422)
+            return JSONResponse(content={'error': _("Please provide webpage details")}, status_code=422)
         
     trigger_platform = payload.sequence.trigger
         
     if trigger_platform != payload.sequence.channel:
-        return JSONResponse(content={'error': "Invalid data provided"}, status_code=422)
+        return JSONResponse(content={'error': _("Invalid data provided")}, status_code=422)
     
     connected_account = db.query(AppointmentSetter).filter_by(platform_unique_id=payload.platform_unique_id).first()
     if connected_account:
-        return JSONResponse(content={'error': "This account is already connected to a agent."}, status_code=400)
+        return JSONResponse(content={'error': _("This account is already connected to a agent.")}, status_code=400)
     
     appointment_setter = AppointmentSetter(**payload.model_dump(), user_id=user_id)
     db.add(appointment_setter)
     db.commit()
     db.refresh(appointment_setter)
     id = appointment_setter.id
-    return JSONResponse(content={'success': f"Appointment agent with id {id} created successfullly."}, status_code=200)
+    return JSONResponse(content={'success': _(f"Appointment agent created successfullly.")}, status_code=200)
 
 @router.get("/appointment-setter-agents")
-def get_appointment_setter_agents(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def get_appointment_setter_agents(db: Session = Depends(get_db), user_id: str = Depends(get_current_user),
+                                _ = Depends(get_translator_dependency)):
     """This endpoint all the agents."""
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     agents = db.query(AppointmentSetter).filter_by(user_id=user_id).all()
     
@@ -75,11 +80,13 @@ def get_appointment_setter_agents(db: Session = Depends(get_db), user_id: str = 
     return JSONResponse(content={'agent': agents_info}, status_code=200)
 
 @router.get("/appointment-setter-agent-details/{agent_id}")
-def get_appointment_setter_agent_details(agent_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def get_appointment_setter_agent_details(agent_id, db: Session = Depends(get_db),
+                                        user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
     """This endpoint all the agents."""
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
     
@@ -97,7 +104,7 @@ def get_appointment_setter_agent_details(agent_id, db: Session = Depends(get_db)
             'your_business_offer': agent.your_business_offer,
             'qualification_questions': agent.qualification_questions,
             'platform_unique_id': agent.platform_unique_id,
-            'google_calendar_id': agent.calendar_id,
+            'calendar_id': agent.calendar_id,
             'sequence': agent.sequence,
             'objective_of_the_agent': agent.objective_of_the_agent,
             'calendar_choosed': agent.calendar_choosed,
@@ -107,13 +114,15 @@ def get_appointment_setter_agent_details(agent_id, db: Session = Depends(get_db)
             'emoji_frequency': agent.emoji_frequency,
             }
         return JSONResponse(content={'agent': agent_info}, status_code=200)
-    return JSONResponse(content={'error': 'Agent does not exist'}, status_code=404)
+    return JSONResponse(content={'error': _('Agent does not exist')}, status_code=404)
 
 @router.patch("/appointment-agent-status/{agent_id}")
-def updating_status_of_appointment_agent(agent_id,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def updating_status_of_appointment_agent(agent_id,  db: Session = Depends(get_db),
+                                        user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
     if agent:
@@ -123,7 +132,7 @@ def updating_status_of_appointment_agent(agent_id,  db: Session = Depends(get_db
             for chat in chats:
                 chat.agent_is_enabled=True
             db.commit()
-            return JSONResponse(content={'success': 'status updated for agent'}, status_code=200)
+            return JSONResponse(content={'success': _('status updated for agent')}, status_code=200)
         
         if agent.is_active == True:
             agent.is_active = False
@@ -131,27 +140,29 @@ def updating_status_of_appointment_agent(agent_id,  db: Session = Depends(get_db
             for chat in chats:
                 chat.agent_is_enabled=False
             db.commit()
-            return JSONResponse(content={'success': 'status updated for agent'}, status_code=200)
-    return JSONResponse(content={'error': 'Agent does not exist'}, status_code=404)
+            return JSONResponse(content={'success': _('status updated for agent')}, status_code=200)
+    return JSONResponse(content={'error': _('Agent does not exist')}, status_code=404)
 
 @router.put("/update-appointment-agent/{agent_id}")
-def updating_appointment_agent(agent_id, payload: UpdateAppointmentSetterSchema,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def updating_appointment_agent(agent_id, payload: UpdateAppointmentSetterSchema,  db: Session = Depends(get_db),
+                            user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     if payload.objective_of_the_agent == "book_a_meeting":
         if payload.calendar_choosed is None or payload.calendar_id is None:
-            return JSONResponse(content={'error': "Please procide calendar details"}, status_code=422)
+            return JSONResponse(content={'error': _("Please provide calendar details")}, status_code=422)
     
     trigger_platform = payload.sequence.trigger
         
     if trigger_platform != payload.sequence.channel:
-        return JSONResponse(content={'error': "Invalid data provided"}, status_code=422)
+        return JSONResponse(content={'error': _("Invalid data provided")}, status_code=422)
     
     connected_account = db.query(AppointmentSetter).filter_by(platform_unique_id=payload.platform_unique_id).first()
     if connected_account and connected_account.platform_unique_id != payload.platform_unique_id:
-        return JSONResponse(content={'error': "This account is already connected to a agent."}, status_code=400)
+        return JSONResponse(content={'error': _("This account is already connected to a agent.")}, status_code=400)
     
     agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
     
@@ -160,40 +171,44 @@ def updating_appointment_agent(agent_id, payload: UpdateAppointmentSetterSchema,
         for key, value in appointment_setter.items():
             setattr(agent, key, value)
         db.commit()
-        return JSONResponse(content={'success': 'Agent updated successfully'}, status_code=200)
-    return JSONResponse(content={'error': 'Not authorized to update this agent'}, status_code=404)
+        return JSONResponse(content={'success': _('Agent updated successfully')}, status_code=200)
+    return JSONResponse(content={'error': _('Not authorized to update this agent')}, status_code=404)
 
 @router.delete("/delete-appointment-agent/{agent_id}")
-def deleting_appointment_agent(agent_id,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def deleting_appointment_agent(agent_id,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user),
+                               _ = Depends(get_translator_dependency)):
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user eoes not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
     
     if agent:
         db.delete(agent)
         db.commit()
-        return JSONResponse(content={'success': 'Agent deleted successfully'}, status_code=200)
-    return JSONResponse(content={'error': 'Not authorized to delete this agent'}, status_code=404)
+        return JSONResponse(content={'success': _('Agent deleted successfully')}, status_code=200)
+    return JSONResponse(content={'error': _('Not authorized to delete this agent')}, status_code=404)
 
 @router.post("/chat-with-lead/{chat_id}")
-def chatting_with_lead(chat_id, payload: ChatWithAgent, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def chatting_with_lead(chat_id, payload: ChatWithAgent, db: Session = Depends(get_db),
+                       user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     chat = (db.query(LeadAnalytics).join(AppointmentSetter, LeadAnalytics.agent_id == AppointmentSetter.id)
                     .filter(AppointmentSetter.user_id == user_id,
                     LeadAnalytics.id == chat_id).first())
     
     if not chat:
-        return JSONResponse(content={"error": "chat does not exist"}, status_code=404)
+        return JSONResponse(content={"error": _("chat does not exist")}, status_code=404)
         
     agent = db.query(AppointmentSetter).filter_by(id=chat.agent_id, user_id=user_id).first()
     
     if chat.agent_is_enabled == True:
-        return JSONResponse(content={'error': 'Cannot talk to the lead presently agent enabled'}, status_code=400)
+        return JSONResponse(content={'error': _('Cannot talk to the lead presently agent enabled')}, status_code=400)
 
     chat_history = {}
     chat_history['agent'] = payload.message
@@ -203,7 +218,7 @@ def chatting_with_lead(chat_id, payload: ChatWithAgent, db: Session = Depends(ge
     chat.updated_at = datetime.date.today()
     db.commit()
     if chat.platform_unique_id != agent.platform_unique_id:
-        return JSONResponse(content={"error": "Cannot chat with lead as it was associated with a different platform before"}, status_code=400)
+        return JSONResponse(content={"error": _("Cannot chat with lead as it was associated with a different platform before")}, status_code=400)
     sequence = agent.sequence
     platform = sequence.get('trigger')    
     if platform == 'Instagram':
@@ -219,10 +234,12 @@ def chatting_with_lead(chat_id, payload: ChatWithAgent, db: Session = Depends(ge
     return JSONResponse({"success": chat_history}, status_code=200)
     
 @router.get("/get-chats")
-def get_chat_history(lead_status: LeadStatus = Depends(), db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def get_chat_history(lead_status: LeadStatus = Depends(), db: Session = Depends(get_db),
+                     user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     agents = db.query(AppointmentSetter).filter_by(user_id=user_id).all()
     response = []
@@ -234,25 +251,29 @@ def get_chat_history(lead_status: LeadStatus = Depends(), db: Session = Depends(
                     lead = chat.id
                     response.append(lead)
         return JSONResponse(content={'success': response}, status_code=200)
-    return JSONResponse(content={'error': 'No chat history'}, status_code=404)
+    return JSONResponse(content={'error': _('No chat history')}, status_code=404)
 
 @router.get("/get-chat-history/{chat_id}")
-def get_chat_history(chat_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def get_chat_history(chat_id, db: Session = Depends(get_db),
+                     user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     chat = db.query(LeadAnalytics).filter_by(id=chat_id).first()
     if chat:
         return JSONResponse(content={'chat': chat.chat_history, 
                                      'agent_is_enabled': chat.agent_is_enabled}, status_code=200)
-    return JSONResponse(content={'error': 'No chat history'}, status_code=404)
+    return JSONResponse(content={'error': _('No chat history')}, status_code=404)
 
 @router.patch("/agent-status-for-chat/{chat_id}")
-def change_agent_enabled_status(chat_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def change_agent_enabled_status(chat_id, db: Session = Depends(get_db),
+                                user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     chat = (db.query(LeadAnalytics).join(AppointmentSetter, LeadAnalytics.agent_id == AppointmentSetter.id)
                     .filter(AppointmentSetter.user_id == user_id,
@@ -262,16 +283,18 @@ def change_agent_enabled_status(chat_id, db: Session = Depends(get_db), user_id:
         if chat.agent_is_enabled == False:
             chat.agent_is_enabled = True
             db.commit()
-            return JSONResponse(content={'success': 'status updated for agent'}, status_code=200)
+            return JSONResponse(content={'success': _('status updated for agent')}, status_code=200)
         
         if chat.agent_is_enabled == True:
             chat.agent_is_enabled = False
             db.commit()
-            return JSONResponse(content={'success': 'status updated for agent'}, status_code=200)
-    return JSONResponse(content={'error': 'Cannot change status of chat '}, status_code=404)
+            return JSONResponse(content={'success': _('status updated for agent')}, status_code=200)
+    return JSONResponse(content={'error': _('Cannot change status of chat')}, status_code=404)
 
 @router.get("/get-lead-analytics")
-def get_lead_analytics(lead_params: LeadAnalyticsSchema = Depends(), db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def get_lead_analytics(lead_params: LeadAnalyticsSchema = Depends(), db: Session = Depends(get_db),
+                       user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    
     positive = 0
     negative = 0
     engaged = 0
@@ -282,7 +305,7 @@ def get_lead_analytics(lead_params: LeadAnalyticsSchema = Depends(), db: Session
     
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     if lead_params.agent_id=='all':
         team_member = db.query(TeamMember).filter_by(userId=user_id).first()
@@ -329,19 +352,21 @@ def get_lead_analytics(lead_params: LeadAnalyticsSchema = Depends(), db: Session
                          , "positive_rate": str(positive_rate), "responded_rate": str(responded_rate)}, status_code=200)
     
 @router.post("/test-agent/{agent_id}")
-def test_agent(agent_id, payload: ChatWithAgent, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def test_agent(agent_id, payload: ChatWithAgent, db: Session = Depends(get_db),
+               user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
     
     if not agent:
-        return JSONResponse(content={"error": "agent does not exist"}, status_code=404)
+        return JSONResponse(content={"error": _("agent does not exist")}, status_code=404)
     
     thread_id = payload.chat_id
     if not thread_id:
-        return JSONResponse(content={"error": "test agent not configured properly"}, status_code=400)
+        return JSONResponse(content={"error": _("test agent not configured properly")}, status_code=400)
     knowledge_base = fetch_text(payload.message, agent.user_id)
     prompt = Prompts.appointment_setter_prompt(agent, knowledge_base)
     appointment_agent = initialise_agent(prompt)

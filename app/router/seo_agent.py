@@ -1,4 +1,4 @@
-import uuid
+import uuid, datetime
 
 from fastapi import WebSocket, Depends
 from fastapi.routing import APIRouter
@@ -13,6 +13,8 @@ from app.models.seo_agent import SeoChatHistory
 from app.ai_agents.prompts import Prompts
 from app.utils.user_auth import get_user_id_from_websocket, get_current_user
 from app.ai_agents.seo_agent import initialise_agent, message_reply_by_agent
+from app.services.babel import get_translator_dependency
+
 
 router = APIRouter(tags=["seo-agent"])
 
@@ -48,17 +50,18 @@ async def seo_agent_chat(id: int, websocket: WebSocket):
 
                 prompt = Prompts.seo_agent_prompt(language)
                 seo_agent = await initialise_agent(prompt)
-                response = await message_reply_by_agent(seo_agent, data, thread_id)
+                ai_response = await message_reply_by_agent(seo_agent, data, thread_id)
 
                 async with get_async_db() as db:
                     chat = await db.get(SeoChatHistory, id)
                     chat_history = chat.chat_history
-                    chat_history.append({'user': data})
-                    chat_history.append({'agent': response})
+                    chat_history.append({'user': data, 'messaged_at': str(datetime.datetime.now(datetime.timezone.utc))})
+                    time_now = datetime.datetime.now(datetime.timezone.utc)
+                    chat_history.append({'agent': ai_response, 'messaged_at': str(time_now)})
                     chat.chat_history = chat_history
                     await db.commit()
 
-                await websocket.send_text(response)
+                await websocket.send_json({'agent': ai_response, 'messaged_at': str(time_now)})
 
         except Exception as e:
             await websocket.close()
@@ -95,7 +98,7 @@ async def new_seo_agent_chat(websocket: WebSocket):
             async with get_async_db() as db:
                 chat = await db.get(SeoChatHistory, chat_id)
                 chat_history = chat.chat_history
-                chat_history.append({'user': data})
+                chat_history.append({'user': data, 'messaged_at': str(datetime.datetime.now(datetime.timezone.utc))})
                 chat.chat_history = chat_history
                 await db.commit()
 
@@ -106,11 +109,12 @@ async def new_seo_agent_chat(websocket: WebSocket):
                 async with get_async_db() as db:
                     chat = await db.get(SeoChatHistory, chat_id)
                     chat_history = chat.chat_history
-                    chat_history.append({'agent': ai_response})
+                    time_now = datetime.datetime.now(datetime.timezone.utc)
+                    chat_history.append({'agent': ai_response, 'messaged_at': str(time_now)})
                     chat.chat_history = chat_history
                     await db.commit()
 
-                await websocket.send_text(ai_response)
+                await websocket.send_json({'agent': ai_response, 'message_at': str(time_now)})
 
         except Exception as e:
             await websocket.close()
@@ -118,10 +122,11 @@ async def new_seo_agent_chat(websocket: WebSocket):
         
 
 @router.get("/get-seo-chats")
-def get_seo_chats(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def get_seo_chats(db: Session = Depends(get_db), user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     chats = db.query(SeoChatHistory).filter_by(user_id=user_id).all()
     response = []
@@ -137,47 +142,53 @@ def get_seo_chats(db: Session = Depends(get_db), user_id: str = Depends(get_curr
     return JSONResponse(content={'success': []}, status_code=200)
 
 @router.get("/get-seo-chat/{chat_id}")
-def get_seo_chat_history(chat_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def get_seo_chat_history(chat_id, db: Session = Depends(get_db),
+                         user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     chat = db.query(SeoChatHistory).filter_by(id=chat_id).first()
     
     if not chat:
-        return JSONResponse(content={'error': 'Chat does not exist'}, status_code=404)
+        return JSONResponse(content={'error': _('Chat does not exist')}, status_code=404)
             
     return JSONResponse(content={'success': chat.chat_history}, status_code=200)
         
         
 @router.patch("/update-seo-chat-name/{chat_id}")
-def update_seo_chat_name(chat_id, payload: NameUpdate, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def update_seo_chat_name(chat_id, payload: NameUpdate, db: Session = Depends(get_db),
+                         user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     chat = db.query(SeoChatHistory).filter_by(id=chat_id).first()
     
     if not chat:
-        return JSONResponse(content={'error': 'Chat does not exist'}, status_code=404)
+        return JSONResponse(content={'error': _('Chat does not exist')}, status_code=404)
     
     chat.name = payload.name
     db.commit()
             
-    return JSONResponse(content={'success': "name updated successfully"}, status_code=200)
+    return JSONResponse(content={'success': _("name updated successfully")}, status_code=200)
 
 @router.delete("/delete-seo-chat/{chat_id}")
-def delete_seo_chat(chat_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def delete_seo_chat(chat_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user),
+                    _ = Depends(get_translator_dependency)):
+    
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
-        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     chat = db.query(SeoChatHistory).filter_by(id=chat_id).first()
     
     if not chat:
-        return JSONResponse(content={'error': 'Chat does not exist'}, status_code=404)
+        return JSONResponse(content={'error': _('Chat does not exist')}, status_code=404)
     
     db.delete(chat)
     db.commit()
             
-    return JSONResponse(content={'success': "chat deleted successfully"}, status_code=200)
+    return JSONResponse(content={'success': _("chat deleted successfully")}, status_code=200)

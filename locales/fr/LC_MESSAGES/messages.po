@@ -1,0 +1,269 @@
+# French translations for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-06-30 15:25+0200\n"
+"PO-Revision-Date: 2025-06-30 12:50+0200\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: fr\n"
+"Language-Team: fr <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: app/router/account_agent.py:128 app/router/account_agent.py:149
+#: app/router/account_agent.py:165 app/router/account_agent.py:183
+#: app/router/appointment_setter.py:31 app/router/appointment_setter.py:64
+#: app/router/appointment_setter.py:89 app/router/appointment_setter.py:125
+#: app/router/appointment_setter.py:152 app/router/appointment_setter.py:183
+#: app/router/appointment_setter.py:199 app/router/appointment_setter.py:242
+#: app/router/appointment_setter.py:262 app/router/appointment_setter.py:276
+#: app/router/appointment_setter.py:308 app/router/appointment_setter.py:360
+#: app/router/coo_agent.py:128 app/router/coo_agent.py:165
+#: app/router/coo_agent.py:183 app/router/email_agent.py:24
+#: app/router/email_agent.py:55 app/router/email_agent.py:85
+#: app/router/email_agent.py:121 app/router/email_agent.py:137
+#: app/router/email_agent.py:166 app/router/email_agent.py:200
+#: app/router/email_agent.py:236 app/router/email_agent.py:253
+#: app/router/email_agent.py:278 app/router/email_agent.py:319
+#: app/router/hr_agent.py:128 app/router/hr_agent.py:149
+#: app/router/hr_agent.py:165 app/router/hr_agent.py:183
+#: app/router/knowledge_base.py:29 app/router/knowledge_base.py:72
+#: app/router/knowledge_base.py:105 app/router/phone_agent.py:26
+#: app/router/phone_agent.py:45 app/router/phone_agent.py:64
+#: app/router/phone_agent.py:85 app/router/phone_agent.py:112
+#: app/router/phone_agent.py:138 app/router/phone_agent.py:165
+#: app/router/phone_agent.py:195 app/router/phone_agent.py:216
+#: app/router/phone_agent.py:237 app/router/phone_agent.py:252
+#: app/router/phone_agent.py:268 app/router/phone_agent.py:286
+#: app/router/seo_agent.py:129 app/router/seo_agent.py:150
+#: app/router/seo_agent.py:166 app/router/seo_agent.py:184
+msgid "user does not exist"
+msgstr ""
+
+#: app/router/account_agent.py:154 app/router/account_agent.py:170
+#: app/router/account_agent.py:188 app/router/coo_agent.py:170
+#: app/router/coo_agent.py:188 app/router/hr_agent.py:154
+#: app/router/hr_agent.py:170 app/router/hr_agent.py:188
+#: app/router/seo_agent.py:155 app/router/seo_agent.py:171
+#: app/router/seo_agent.py:189
+msgid "Chat does not exist"
+msgstr ""
+
+#: app/router/account_agent.py:175 app/router/coo_agent.py:175
+#: app/router/hr_agent.py:175 app/router/seo_agent.py:176
+#, fuzzy
+msgid "name updated successfully"
+msgstr ""
+
+#: app/router/account_agent.py:193 app/router/coo_agent.py:193
+#: app/router/hr_agent.py:193 app/router/seo_agent.py:194
+#, fuzzy
+msgid "chat deleted successfully"
+msgstr ""
+
+#: app/router/appointment_setter.py:35 app/router/appointment_setter.py:156
+msgid "Please provide calendar details"
+msgstr ""
+
+#: app/router/appointment_setter.py:39
+msgid "Please provide webpage details"
+msgstr ""
+
+#: app/router/appointment_setter.py:44 app/router/appointment_setter.py:161
+msgid "Invalid data provided"
+msgstr ""
+
+#: app/router/appointment_setter.py:48 app/router/appointment_setter.py:165
+msgid "This account is already connected to a agent."
+msgstr ""
+
+#: app/router/appointment_setter.py:55
+msgid "Appointment agent created successfullly."
+msgstr "rtyuioiuytredrfgthyuiopoiuytrtyuioiuytr"
+
+#: app/router/appointment_setter.py:117 app/router/appointment_setter.py:144
+msgid "Agent does not exist"
+msgstr ""
+
+#: app/router/appointment_setter.py:135 app/router/appointment_setter.py:143
+#: app/router/appointment_setter.py:286 app/router/appointment_setter.py:291
+#: app/router/phone_agent.py:223 app/router/phone_agent.py:228
+msgid "status updated for agent"
+msgstr ""
+
+#: app/router/appointment_setter.py:174
+msgid "Agent updated successfully"
+msgstr ""
+
+#: app/router/appointment_setter.py:175
+msgid "Not authorized to update this agent"
+msgstr ""
+
+#: app/router/appointment_setter.py:190
+msgid "Agent deleted successfully"
+msgstr ""
+
+#: app/router/appointment_setter.py:191
+msgid "Not authorized to delete this agent"
+msgstr ""
+
+#: app/router/appointment_setter.py:206
+msgid "chat does not exist"
+msgstr ""
+
+#: app/router/appointment_setter.py:211
+msgid "Cannot talk to the lead presently agent enabled"
+msgstr ""
+
+#: app/router/appointment_setter.py:221
+msgid ""
+"Cannot chat with lead as it was associated with a different platform "
+"before"
+msgstr ""
+
+#: app/router/appointment_setter.py:254 app/router/appointment_setter.py:268
+msgid "No chat history"
+msgstr ""
+
+#: app/router/appointment_setter.py:292
+msgid "Cannot change status of chat"
+msgstr ""
+
+#: app/router/appointment_setter.py:365
+msgid "agent does not exist"
+msgstr ""
+
+#: app/router/appointment_setter.py:369
+msgid "test agent not configured properly"
+msgstr ""
+
+#: app/router/email_agent.py:28 app/router/email_agent.py:141
+msgid "Need to provide calendar type"
+msgstr ""
+
+#: app/router/email_agent.py:32 app/router/email_agent.py:145
+msgid "Need to provide url"
+msgstr ""
+
+#: app/router/email_agent.py:47
+#, fuzzy
+msgid "Email Campaign is created successfullly."
+msgstr ""
+
+#: app/router/email_agent.py:113 app/router/email_agent.py:129
+#: app/router/email_agent.py:193 app/router/email_agent.py:311
+#: app/router/phone_agent.py:169 app/router/phone_agent.py:259
+#: app/router/phone_agent.py:309
+msgid "Campaign does not exist"
+msgstr ""
+
+#: app/router/email_agent.py:128 app/router/phone_agent.py:258
+#, fuzzy
+msgid "Campaign deleted successfully"
+msgstr ""
+
+#: app/router/email_agent.py:157 app/router/phone_agent.py:277
+#, fuzzy
+msgid "Campaign updated successfully"
+msgstr ""
+
+#: app/router/email_agent.py:158 app/router/phone_agent.py:278
+msgid "Not authorized to update this campaign"
+msgstr ""
+
+#: app/router/email_agent.py:183 app/router/email_agent.py:192
+msgid "status updated for campaign"
+msgstr ""
+
+#: app/router/email_agent.py:204
+msgid "You donot have any ongoing campaigns"
+msgstr ""
+
+#: app/router/email_agent.py:244
+msgid "No content exits"
+msgstr ""
+
+#: app/router/email_agent.py:270
+msgid "Cannot edit the content"
+msgstr ""
+
+#: app/router/email_agent.py:310 app/router/phone_agent.py:308
+msgid "campaign duplicated"
+msgstr ""
+
+#: app/router/knowledge_base.py:48
+msgid "Only PDF files are allowed."
+msgstr ""
+
+#: app/router/knowledge_base.py:65
+msgid "Your data is stored in BrainAI knowledge base"
+msgstr ""
+
+#: app/router/knowledge_base.py:108
+msgid "knowledge_base does not exist"
+msgstr ""
+
+#: app/router/knowledge_base.py:111
+#, fuzzy
+msgid "knowledge base deleted successfully"
+msgstr ""
+
+#: app/router/phone_agent.py:30
+msgid "phone number is already added"
+msgstr ""
+
+#: app/router/phone_agent.py:36
+msgid "Phone Number added to the list"
+msgstr ""
+
+#: app/router/phone_agent.py:49 app/router/phone_agent.py:68
+msgid "phone number does not exists"
+msgstr ""
+
+#: app/router/phone_agent.py:55 app/router/phone_agent.py:78
+#, fuzzy
+msgid "The phone agent is created successfully"
+msgstr ""
+
+#: app/router/phone_agent.py:72
+msgid "agent does not exists"
+msgstr ""
+
+#: app/router/phone_agent.py:89
+msgid "No Phone Numbers are added"
+msgstr ""
+
+#: app/router/phone_agent.py:116
+msgid "first create agents"
+msgstr ""
+
+#: app/router/phone_agent.py:142
+#, fuzzy
+msgid "No campaigns created"
+msgstr ""
+
+#: app/router/phone_agent.py:202 app/router/phone_agent.py:207
+msgid "status updated for number"
+msgstr ""
+
+#: app/router/phone_agent.py:208 app/router/phone_agent.py:229
+#: app/router/phone_agent.py:244
+msgid "Phone Number does not exist"
+msgstr ""
+
+#: app/router/phone_agent.py:243
+#, fuzzy
+msgid "Phone Number deleted successfully"
+msgstr ""
+
+#~ msgid "Cannot chat with lead as it was associated with a different platform "
+#~ msgstr ""
+

@@ -12,6 +12,7 @@ class Contacts(Base):
     lastName = Column(String, nullable=True)
     businessName = Column(String, nullable=True)
     companyName = Column(String, nullable=True)
+    countryCode = Column(String, nullable=True)
     phone = Column(String, nullable=True)
     email = Column(String, nullable=True)
     created = Column(String, nullable=True)
