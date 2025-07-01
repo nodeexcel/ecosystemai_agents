@@ -71,29 +71,30 @@ def get_snippets(db: Session = Depends(get_db), user_id: str = Depends(get_curre
     if not user:
         return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     snippets = db.query(KnowledgeBase).filter_by(data_type='snippet', user_id=user_id).all()
-    snippets_info = []
-    snippet_info = {}
+    snippets_data = []
     for snippet in snippets:
+        snippet_info = {}
         snippet_info['id'] = snippet.id
         snippet_info['data'] = snippet.data
-        snippets_info.append(snippet_info)
+        snippets_data.append(snippet_info)
         
     websites = db.query(KnowledgeBase).filter_by(data_type='website', user_id=user_id).all()
     website_urls = []
     website_info = {}
     for website in websites:
+        website_info = {}
         website_info['id'] = website.id
         website_info['url'] = website.data
         website_urls.append(website_info)
         
     files = db.query(KnowledgeBase).filter_by(data_type='files', user_id=user_id).all()
     documents = []
-    document_info = {}
     for file in files:
+        document_info = {}
         document_info['id'] = file.id
         document_info['path'] = f"http://116.202.210.102:8000{file.path}"
         documents.append(document_info)
-    return JSONResponse({"snippets": snippets_info, "website": website_urls, "files":documents},status_code=200)
+    return JSONResponse({"snippets": snippets_data, "website": website_urls, "files":documents},status_code=200)
 
 
 @router.delete('/knowledge-base/{id}')

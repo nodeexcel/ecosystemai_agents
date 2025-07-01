@@ -55,11 +55,11 @@ async def accounting_chat(id: int, websocket: WebSocket):
                     chat_history = chat.chat_history
                     chat_history.append({'user': data, 'message_at': str(datetime.datetime.now(datetime.timezone.utc))})
                     time_now = datetime.datetime.now(datetime.timezone.utc)
-                    chat_history.append({'agent': ai_response, 'message_at': time_now})
+                    chat_history.append({'agent': ai_response, 'message_at': str(time_now)})
                     chat.chat_history = chat_history
                     await db.commit()
 
-                    await websocket.send_json({'agent': ai_response, 'messaged_at': str(time_now)})
+                    await websocket.send_json({'agent': ai_response, 'message_at': str(time_now)})
 
         except Exception as e:
             await websocket.close()
@@ -87,32 +87,32 @@ async def new_accounting_chat(websocket: WebSocket):
         db.add(chat)
         await db.commit()
         await db.refresh(chat)
-        chat_id = chat.id
+        id = chat.id
         
     while True:
         try:
             data = await websocket.receive_text()
-
+            
             async with get_async_db() as db:
-                chat = await db.get(AccountChatHistory, chat_id)
+                chat = await db.get(AccountChatHistory, id)
                 chat_history = chat.chat_history
                 chat_history.append({'user': data, 'message_at': str(datetime.datetime.now(datetime.timezone.utc))})
                 chat.chat_history = chat_history
                 await db.commit()
-
+                
                 prompt = Prompts.accounting_agent(language)
                 accounting_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(accounting_agent, data, thread_id)
 
                 async with get_async_db() as db:
-                    chat = await db.get(AccountChatHistory, chat_id)
+                    chat = await db.get(AccountChatHistory, id)
                     chat_history = chat.chat_history
                     time_now = datetime.datetime.now(datetime.timezone.utc)
-                    chat_history.append({'agent': ai_response, 'message_at': time_now})
+                    chat_history.append({'agent': ai_response, 'message_at': str(time_now)})
                     chat.chat_history = chat_history
                     await db.commit()
 
-                await websocket.send_json({'agent': ai_response, 'messaged_at': str(time_now)})
+                await websocket.send_json({'agent': ai_response, 'message_at': str(time_now)})
 
         except Exception as e:
             await websocket.close()

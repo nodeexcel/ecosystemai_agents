@@ -97,7 +97,7 @@ async def new_hr_agent_chat(websocket: WebSocket):
             async with get_async_db() as db:
                 chat = await db.get(HrChatHistory, chat_id)
                 chat_history = chat.chat_history
-                chat_history.append({'user': data, 'message_at': (datetime.datetime.now(datetime.timezone.utc))})
+                chat_history.append({'user': data, 'message_at': str(datetime.datetime.now(datetime.timezone.utc))})
                 chat.chat_history = chat_history
                 await db.commit()
 

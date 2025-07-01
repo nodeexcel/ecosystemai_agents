@@ -46,7 +46,7 @@ msgstr ""
 #: app/router/seo_agent.py:129 app/router/seo_agent.py:150
 #: app/router/seo_agent.py:166 app/router/seo_agent.py:184
 msgid "user does not exist"
-msgstr ""
+msgstr "l'utilisateur n'existe pas"
 
 #: app/router/account_agent.py:154 app/router/account_agent.py:170
 #: app/router/account_agent.py:188 app/router/coo_agent.py:170
@@ -55,215 +55,211 @@ msgstr ""
 #: app/router/seo_agent.py:155 app/router/seo_agent.py:171
 #: app/router/seo_agent.py:189
 msgid "Chat does not exist"
-msgstr ""
+msgstr "Le chat n'existe pas"
 
 #: app/router/account_agent.py:175 app/router/coo_agent.py:175
 #: app/router/hr_agent.py:175 app/router/seo_agent.py:176
 #, fuzzy
 msgid "name updated successfully"
-msgstr ""
+msgstr "nom mis à jour avec succès"
 
 #: app/router/account_agent.py:193 app/router/coo_agent.py:193
 #: app/router/hr_agent.py:193 app/router/seo_agent.py:194
 #, fuzzy
 msgid "chat deleted successfully"
-msgstr ""
+msgstr "chat supprimé avec succès"
 
 #: app/router/appointment_setter.py:35 app/router/appointment_setter.py:156
 msgid "Please provide calendar details"
-msgstr ""
+msgstr "Veuillez fournir les détails du calendrier"
 
 #: app/router/appointment_setter.py:39
 msgid "Please provide webpage details"
-msgstr ""
+msgstr "Veuillez fournir les détails de la page Web"
 
 #: app/router/appointment_setter.py:44 app/router/appointment_setter.py:161
 msgid "Invalid data provided"
-msgstr ""
+msgstr "Données non valides fournies"
 
 #: app/router/appointment_setter.py:48 app/router/appointment_setter.py:165
 msgid "This account is already connected to a agent."
-msgstr ""
+msgstr "Ce compte est déjà connecté à un agent"
 
 #: app/router/appointment_setter.py:55
 msgid "Appointment agent created successfullly."
-msgstr "rtyuioiuytredrfgthyuiopoiuytrtyuioiuytr"
+msgstr "Agent de rendez-vous créé avec succès"
 
 #: app/router/appointment_setter.py:117 app/router/appointment_setter.py:144
 msgid "Agent does not exist"
-msgstr ""
+msgstr "L'agent n'existe pas"
 
 #: app/router/appointment_setter.py:135 app/router/appointment_setter.py:143
 #: app/router/appointment_setter.py:286 app/router/appointment_setter.py:291
 #: app/router/phone_agent.py:223 app/router/phone_agent.py:228
 msgid "status updated for agent"
-msgstr ""
+msgstr "statut mis à jour pour l'agent"
 
 #: app/router/appointment_setter.py:174
 msgid "Agent updated successfully"
-msgstr ""
+msgstr "Agent mis à jour avec succès"
 
 #: app/router/appointment_setter.py:175
 msgid "Not authorized to update this agent"
-msgstr ""
+msgstr "Non autorisé à mettre à jour cet agent"
 
 #: app/router/appointment_setter.py:190
 msgid "Agent deleted successfully"
-msgstr ""
+msgstr "Agent supprimé avec succès"
 
 #: app/router/appointment_setter.py:191
 msgid "Not authorized to delete this agent"
-msgstr ""
+msgstr "Non autorisé à supprimer cet agent"
 
 #: app/router/appointment_setter.py:206
 msgid "chat does not exist"
-msgstr ""
+msgstr "le chat n'existe pas"
 
 #: app/router/appointment_setter.py:211
 msgid "Cannot talk to the lead presently agent enabled"
-msgstr ""
+msgstr "Impossible de parler à l'agent principal actuellement activé"
 
 #: app/router/appointment_setter.py:221
 msgid ""
 "Cannot chat with lead as it was associated with a different platform "
 "before"
-msgstr ""
+msgstr "Impossible de discuter avec le prospect car il était associé à une autre plateforme"
 
 #: app/router/appointment_setter.py:254 app/router/appointment_setter.py:268
 msgid "No chat history"
-msgstr ""
+msgstr "Pas d'historique de discussion"
 
 #: app/router/appointment_setter.py:292
 msgid "Cannot change status of chat"
-msgstr ""
+msgstr "Impossible de modifier le statut du chat"
 
 #: app/router/appointment_setter.py:365
 msgid "agent does not exist"
-msgstr ""
+msgstr "l'agent n'existe pas"
 
 #: app/router/appointment_setter.py:369
 msgid "test agent not configured properly"
-msgstr ""
+msgstr "l'agent de test n'est pas configuré correctement"
 
 #: app/router/email_agent.py:28 app/router/email_agent.py:141
 msgid "Need to provide calendar type"
-msgstr ""
+msgstr "Besoin de fournir le type de calendrier"
 
 #: app/router/email_agent.py:32 app/router/email_agent.py:145
 msgid "Need to provide url"
-msgstr ""
+msgstr "Besoin de fournir l'URL"
 
 #: app/router/email_agent.py:47
 #, fuzzy
 msgid "Email Campaign is created successfullly."
-msgstr ""
+msgstr "La campagne par e-mail a été créée avec succès"
 
 #: app/router/email_agent.py:113 app/router/email_agent.py:129
 #: app/router/email_agent.py:193 app/router/email_agent.py:311
 #: app/router/phone_agent.py:169 app/router/phone_agent.py:259
 #: app/router/phone_agent.py:309
 msgid "Campaign does not exist"
-msgstr ""
+msgstr "La campagne n'existe pas"
 
 #: app/router/email_agent.py:128 app/router/phone_agent.py:258
 #, fuzzy
 msgid "Campaign deleted successfully"
-msgstr ""
+msgstr "Campagne supprimée avec succès"
 
 #: app/router/email_agent.py:157 app/router/phone_agent.py:277
 #, fuzzy
 msgid "Campaign updated successfully"
-msgstr ""
+msgstr "Campagne mise à jour avec succès"
 
 #: app/router/email_agent.py:158 app/router/phone_agent.py:278
 msgid "Not authorized to update this campaign"
-msgstr ""
+msgstr "Non autorisé à mettre à jour cette campagne"
 
 #: app/router/email_agent.py:183 app/router/email_agent.py:192
 msgid "status updated for campaign"
-msgstr ""
+msgstr "statut mis à jour pour la campagne"
 
 #: app/router/email_agent.py:204
 msgid "You donot have any ongoing campaigns"
-msgstr ""
+msgstr "Vous n'avez aucune campagne en cours"
 
 #: app/router/email_agent.py:244
 msgid "No content exits"
-msgstr ""
+msgstr "Aucun contenu ne sort"
 
 #: app/router/email_agent.py:270
 msgid "Cannot edit the content"
-msgstr ""
+msgstr "Impossible de modifier le contenu"
 
 #: app/router/email_agent.py:310 app/router/phone_agent.py:308
 msgid "campaign duplicated"
-msgstr ""
+msgstr "campagne dupliquée"
 
 #: app/router/knowledge_base.py:48
 msgid "Only PDF files are allowed."
-msgstr ""
+msgstr "Seuls les fichiers PDF sont autorisés"
 
 #: app/router/knowledge_base.py:65
 msgid "Your data is stored in BrainAI knowledge base"
-msgstr ""
+msgstr "Vos données sont stockées dans la base de connaissances BrainAI"
 
 #: app/router/knowledge_base.py:108
 msgid "knowledge_base does not exist"
-msgstr ""
+msgstr "la base de connaissances n'existe pas"
 
 #: app/router/knowledge_base.py:111
 #, fuzzy
 msgid "knowledge base deleted successfully"
-msgstr ""
+msgstr "base de connaissances supprimée avec succès"
 
 #: app/router/phone_agent.py:30
 msgid "phone number is already added"
-msgstr ""
+msgstr "le numéro de téléphone est déjà ajouté"
 
 #: app/router/phone_agent.py:36
 msgid "Phone Number added to the list"
-msgstr ""
+msgstr "Numéro de téléphone ajouté à la liste"
 
 #: app/router/phone_agent.py:49 app/router/phone_agent.py:68
 msgid "phone number does not exists"
-msgstr ""
+msgstr "le numéro de téléphone n'existe pas"
 
 #: app/router/phone_agent.py:55 app/router/phone_agent.py:78
 #, fuzzy
 msgid "The phone agent is created successfully"
-msgstr ""
+msgstr "L'agent téléphonique a été créé avec succès"
 
 #: app/router/phone_agent.py:72
 msgid "agent does not exists"
-msgstr ""
+msgstr "l'agent n'existe pas"
 
 #: app/router/phone_agent.py:89
 msgid "No Phone Numbers are added"
-msgstr ""
+msgstr "Aucun numéro de téléphone n'est ajouté"
 
 #: app/router/phone_agent.py:116
 msgid "first create agents"
-msgstr ""
+msgstr "créer d'abord des agents"
 
 #: app/router/phone_agent.py:142
 #, fuzzy
 msgid "No campaigns created"
-msgstr ""
+msgstr "Aucune campagne créée"
 
 #: app/router/phone_agent.py:202 app/router/phone_agent.py:207
 msgid "status updated for number"
-msgstr ""
+msgstr "statut mis à jour pour le numéro"
 
 #: app/router/phone_agent.py:208 app/router/phone_agent.py:229
 #: app/router/phone_agent.py:244
 msgid "Phone Number does not exist"
-msgstr ""
+msgstr "Le numéro de téléphone n'existe pas"
 
 #: app/router/phone_agent.py:243
 #, fuzzy
 msgid "Phone Number deleted successfully"
-msgstr ""
-
-#~ msgid "Cannot chat with lead as it was associated with a different platform "
-#~ msgstr ""
-
+msgstr "Numéro de téléphone supprimé avec succès"

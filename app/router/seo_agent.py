@@ -55,13 +55,13 @@ async def seo_agent_chat(id: int, websocket: WebSocket):
                 async with get_async_db() as db:
                     chat = await db.get(SeoChatHistory, id)
                     chat_history = chat.chat_history
-                    chat_history.append({'user': data, 'messaged_at': str(datetime.datetime.now(datetime.timezone.utc))})
+                    chat_history.append({'user': data, 'message_at': str(datetime.datetime.now(datetime.timezone.utc))})
                     time_now = datetime.datetime.now(datetime.timezone.utc)
-                    chat_history.append({'agent': ai_response, 'messaged_at': str(time_now)})
+                    chat_history.append({'agent': ai_response, 'message_at': str(time_now)})
                     chat.chat_history = chat_history
                     await db.commit()
 
-                await websocket.send_json({'agent': ai_response, 'messaged_at': str(time_now)})
+                await websocket.send_json({'agent': ai_response, 'message_at': str(time_now)})
 
         except Exception as e:
             await websocket.close()
@@ -98,7 +98,7 @@ async def new_seo_agent_chat(websocket: WebSocket):
             async with get_async_db() as db:
                 chat = await db.get(SeoChatHistory, chat_id)
                 chat_history = chat.chat_history
-                chat_history.append({'user': data, 'messaged_at': str(datetime.datetime.now(datetime.timezone.utc))})
+                chat_history.append({'user': data, 'message_at': str(datetime.datetime.now(datetime.timezone.utc))})
                 chat.chat_history = chat_history
                 await db.commit()
 
@@ -110,7 +110,7 @@ async def new_seo_agent_chat(websocket: WebSocket):
                     chat = await db.get(SeoChatHistory, chat_id)
                     chat_history = chat.chat_history
                     time_now = datetime.datetime.now(datetime.timezone.utc)
-                    chat_history.append({'agent': ai_response, 'messaged_at': str(time_now)})
+                    chat_history.append({'agent': ai_response, 'message_at': str(time_now)})
                     chat.chat_history = chat_history
                     await db.commit()
 
