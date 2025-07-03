@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .router import (appointment_setter, knowledge_base, email_agent,
-                     phone_agent, account_agent, seo_agent, coo_agent, hr_agent)
+                     phone_agent, account_agent, seo_agent, coo_agent, hr_agent,
+                     content_creation)
 from .social_media_integrations import instagram
 from .social_media_integrations import whatsapp
 from .social_media_integrations import google_calendar
@@ -34,3 +35,4 @@ app.include_router(account_agent.router)
 app.include_router(seo_agent.router)
 app.include_router(coo_agent.router)
 app.include_router(hr_agent.router)
+app.include_router(content_creation.router)

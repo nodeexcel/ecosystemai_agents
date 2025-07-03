@@ -201,3 +201,4 @@ def delete_connected_whatsapp_accounts(whatsapp_id, db: Session = Depends(get_db
     db.commit()
     return JSONResponse(content={"success": "account deleted successfully"}, status_code=200)
 
+
