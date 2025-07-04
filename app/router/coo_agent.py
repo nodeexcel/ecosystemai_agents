@@ -14,6 +14,7 @@ from app.ai_agents.prompts import Prompts
 from app.utils.user_auth import get_user_id_from_websocket, get_current_user
 from app.ai_agents.coo_agent import initialise_agent, message_reply_by_agent
 from app.services.babel import get_translator_dependency
+from app.utils.chatbots import summarizing_initial_chat
 
 router = APIRouter(tags=["coo-agent"])
 
@@ -92,12 +93,15 @@ async def new_coo_agent_chat(websocket: WebSocket):
     while True:
         try:
             data = await websocket.receive_text()
+            
+            chat_name = await summarizing_initial_chat(data)
 
             async with get_async_db() as db:
                 chat = await db.get(CooChatHistory, chat_id)
                 chat_history = chat.chat_history
                 chat_history.append({'user': data, 'message_at': str(datetime.datetime.now(datetime.timezone.utc))})
                 chat.chat_history = chat_history
+                chat.name = chat_name
                 await db.commit()
 
                 prompt = Prompts.coo_agent_prompt(language)

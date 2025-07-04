@@ -14,6 +14,7 @@ from app.ai_agents.prompts import Prompts
 from app.utils.user_auth import get_user_id_from_websocket, get_current_user
 from app.ai_agents.content_creation_agent import initialise_agent, message_reply_by_agent
 from app.services.babel import get_translator_dependency
+from app.utils.chatbots import summarizing_initial_chat
 
 router = APIRouter(tags=["content-creation-agent"])
 
@@ -34,7 +35,7 @@ async def content_creation_chat(id: int, websocket: WebSocket):
     while True:
         try:
             data = await websocket.receive_text()
-
+            
             async with get_async_db() as db:
                 chat = await db.get(ContentCreationChatHistory, id)
                 if not chat:
@@ -90,12 +91,15 @@ async def new_content_creation_chat(websocket: WebSocket):
     while True:
         try:
             data = await websocket.receive_text()
+            
+            chat_title = await summarizing_initial_chat(data)
 
             async with get_async_db() as db:
                 chat = await db.get(ContentCreationChatHistory, chat_id)
                 chat_history = chat.chat_history
                 chat_history.append({'user': data, 'message_at': str(datetime.datetime.now(datetime.timezone.utc))})
                 chat.chat_history = chat_history
+                chat.name = chat_title
                 await db.commit()
 
                 prompt = Prompts.content_creation_agent_prompt(language)
@@ -192,13 +196,23 @@ def delete_content_creation_chat(chat_id, db: Session = Depends(get_db), user_id
 
 
 @router.post("/check-predis")
-def webhook_for_predis(payload: PredisCheck):
+def webhook_for_predis(payload: PredisCheck, db: Session = Depends(get_db)):
+    
+    post_id = payload.post_id
+    content = db.query(Content).filter_by(post_id=post_id).first()
     if payload.status == "error":
-        return JSONResponse(content={'error': "Previous request of content creation could no proceed due to some issue. Please try again"}, status_code=408)
+        if content:
+            content.post_status = "error"
+            db.commit()
+        return JSONResponse(content={'error': "Previous request of content creation could no proceed due to some issue. Please try again"}, status_code=500)
+    
     if payload.status == "completed":
-        print(payload.model_dump())
+        content.media_urls = payload.generated_media
+        content.caption = payload.caption
+        content.post_status = 'completed'
+        db.commit()
         
-    return JSONResponse(content={"success": "account deleted successfully"}, status_code=200)
+    return JSONResponse(content={"success": "conteent generated"}, status_code=200)
 
 @router.post("/create-content")
 def create_content(payload: ContentCreateSchema, db: Session = Depends(get_db),
@@ -211,43 +225,77 @@ def create_content(payload: ContentCreateSchema, db: Session = Depends(get_db),
     if payload.post_type == 'quotes' and payload.author is None:
         return JSONResponse(content={"error": "please provide author for quotes"}, status_code=400)
     
-    if payload.media_type == 'video':
-        if not payload.video_duration:
-            video_duration = 'short'
+    text = payload.text.split()
+    if len(text) <= 3:
+        return JSONResponse(content={"text": "Text length is too small"}, status_code=400)
     
     if payload.media_type == 'video':
+        
+        if payload.post_type == 'meme':
+            return JSONResponse(content={"post_type": "meme post type is not supported for video"}, status_code=400)
+        
+        if not payload.video_duration:
+            payload.video_duration = 'short'
+            
         data = {'brand_id': os.getenv("BRAND_ID"),
         'text': payload.text,
-        'post_type': payload.media_type,
-        'video_duration': video_duration,
+        'post_type': payload.post_type,
+        'video_duration': payload.video_duration,
         'media_type': 'video'}
     
     if payload.media_type == "single_image":
         data = {'brand_id': os.getenv("BRAND_ID"),
         'text': payload.text,
-        'post_type': payload.media_type,
+        'post_type': payload.post_type,
         'media_type': 'single_image'}
     
-    if payload.media_type == "carosuel":
+    if payload.media_type == "carousel":
         data = {'brand_id': os.getenv("BRAND_ID"),
         'text': payload.text,
-        'post_type': payload.media_type,
-        'media_type': 'carosuel'}
+        'post_type': payload.post_type,
+        'media_type': 'carousel'}
         
-    response = requests.post(os.getenv('CONTENT_GENERATE_API_URL'), data=data, headers={'authorization':'CONTENT_GENERATE_API_KEY'})
+    response = requests.post(os.getenv('CONTENT_GENERATE_API_URL'), data=data,
+                             headers={'authorization':os.getenv('CONTENT_GENERATE_API_KEY')})
     
-    if response.status_code == 400:
+    if response.status_code != 200:
         time.sleep(30)
-        response = requests.post(os.getenv('CONTENT_GENERATE_API_URL'), data=data, headers={'authorization':'CONTENT_GENERATE_API_KEY'})
+        response = requests.post(os.getenv('CONTENT_GENERATE_API_URL'), data=data,
+                                 headers={'authorization': os.getenv('CONTENT_GENERATE_API_KEY')})
         if response.status_code == 400:
             return JSONResponse({'error': 'There is some processing issue. Please try again later'}, status_code=500)
-    if response.status_code == 200:
-        content = Content(**payload.model_dump(), user_id=user_id)
-        db.add(content)
-        db.commit()
-        db.refresh(content)
-        return JSONResponse(content={'content_id': content.id, 'status': 'in_progress',
-                                    'message': 'content generation has started'}, status_code=200)
         
+    if response.status_code == 200:
+        response_data = response.json()
+        
+        post_ids = response_data.get('post_ids')
+        for post_id in post_ids:
+            content = Content(**payload.model_dump(), post_id=post_id, user_id=user_id)
+            db.add(content)
+            db.commit()
+            db.refresh(content)
+            print(response.status_code, response.text)
+            return JSONResponse(content={'content_id': content.id, 'status': 'in_progress',
+                                        'message': 'content generation has started'}, status_code=200)
 
+@router.get('/content-generation-status')
+def content_generation_status(content_id: str, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    content = db.query(Content).filter_by(id=content_id).first()
+    
+    if not content:
+        return JSONResponse(content={'error': 'content does not exist'}, status_code=404)
+    
+    if content.post_status == 'in_progress':
+        return JSONResponse(content={'status': 'in_progress', 'message': 'content generation is in progress'}, status_code=200)
+    
+    if content.post_status == 'completed':
+        return JSONResponse(content={'status': 'completed', 'message': 'content generation is completed', 'media_type': content.media_type,
+                                     'media_urls': content.media_urls, 'caption': content.caption}, status_code=200)
+    
+    
     

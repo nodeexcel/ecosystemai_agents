@@ -1,16 +1,8 @@
 import os, json
 from langchain.chat_models import init_chat_model
-from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from app.models.checkpointer_agent import async_checkpointer
 
-llm = ChatOpenAI(
-    model="gpt-4o",
-    api_key=os.getenv("API_KEY"),
-    temperature=1.5,
-    top_p=0.7
-)
-    
 async def initialise_agent(prompt):
     model = init_chat_model(
         "openai:gpt-4o",
@@ -32,12 +24,5 @@ async def message_reply_by_agent(account_agent, user_query, thread_id):
                                         config=config)
     response = await response
     ai_response = response["messages"][-1].content
-    
-    return ai_response
-
-
-async def check_message(prompt, user_query):
-    response =  await llm.ainvoke([("system", prompt), ("human", user_query)])
-    ai_response = response.content
     
     return ai_response
