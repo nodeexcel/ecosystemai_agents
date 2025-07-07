@@ -5,7 +5,7 @@ from app.models.get_db import SessionLocal
 from sqlalchemy import or_ 
 from app.models.email_agent import EmailCampaign, EmailContent
 from app.ai_agents.prompts import Prompts
-from app.ai_agents.email_agent import email_agent, send_email
+from app.ai_agents.email_agent import email_agent
 
 @celery_application.task
 def create_emails():
@@ -35,8 +35,6 @@ def create_emails():
                                     status="approved")
             db.add(email_content)
             db.commit()
-        # send_email(email)
-        # print(response)
         
         
         

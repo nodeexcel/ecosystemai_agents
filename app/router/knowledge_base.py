@@ -1,4 +1,4 @@
-import os, uuid
+import os, io
 from fastapi import Depends, UploadFile, Form, File
 from fastapi.routing import APIRouter
 from fastapi.responses import JSONResponse 
@@ -8,14 +8,12 @@ from sqlalchemy.orm import Session
 
 from app.models.get_db import get_db
 from app.models.model import User, KnowledgeBase
+from app.services.aws_boto3 import aws_client, get_upload_args
 from app.utils.user_auth import get_current_user
 from app.utils.knowledge_base import website_scrape, knowledge_base_embedding_and_storage, process_large_pdf_to_pinecone
 from app.services.babel import get_translator_dependency
 
 router = APIRouter(tags=['knowledge_base'])
-
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
     
 @router.post('/knowledge-base')
 def embeddings_for_snippets(data: str = Form(...),
@@ -47,20 +45,29 @@ def embeddings_for_snippets(data: str = Form(...),
         if not file.filename.endswith(".pdf"):
             return JSONResponse(status_code=400, content=_("Only PDF files are allowed."))
 
-        filename = f"{uuid.uuid4()}_{file.filename}"
-        file_path = os.path.join(UPLOAD_DIR, filename)
+        file_path = f"knowledge_base/{user.email}/{file.filename}"
         
-        with open(file_path, "wb") as f:
-            f.write(file.file.read())
+        file_object = db.query(KnowledgeBase).filter_by(path=file_path).first()
+        
+        if file_object:
+            return JSONResponse(content={"error": "File already exists"},  status_code=400)
+        
+        extra_args = get_upload_args(file.filename)
+        
+        aws_client.upload_fileobj(Fileobj=file.file, 
+                       Bucket=os.getenv('BUCKET_NAME'), Key=file_path,
+                       ExtraArgs=extra_args)
 
-        file_url = f"/uploads/{filename}"
-
-        knowledge_base = KnowledgeBase(data_type='files', data=data, path=file_url, user_id=user_id)
+        knowledge_base = KnowledgeBase(data_type='files', data=data, path=file_path, user_id=user_id)
         db.add(knowledge_base)
         db.commit()
         db.refresh(knowledge_base)
         
-        process_large_pdf_to_pinecone(file_path, user_id)
+        file_path = os.getenv("S3_BASE_URL") + f"/{file_path}"
+        try:
+            process_large_pdf_to_pinecone(file_path, user_id)
+        except Exception:
+            return JSONResponse(content={"error": "Your request could not be supported"},  status_code=500)
         
     return JSONResponse({"success": _("Your data is stored in BrainAI knowledge base")}, status_code=200)
 
@@ -92,7 +99,7 @@ def get_snippets(db: Session = Depends(get_db), user_id: str = Depends(get_curre
     for file in files:
         document_info = {}
         document_info['id'] = file.id
-        document_info['path'] = f"http://116.202.210.102:8000{file.path}"
+        document_info['path'] = os.getenv("S3_BASE_URL") + f"/{file.path}"
         documents.append(document_info)
     return JSONResponse({"snippets": snippets_data, "website": website_urls, "files":documents},status_code=200)
 

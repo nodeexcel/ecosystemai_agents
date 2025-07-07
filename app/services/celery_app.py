@@ -1,8 +1,14 @@
+import os
 from celery import Celery
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
 celery_application = Celery("ecosystem-ai", 
-                            broker="redis://localhost:6379/0",
-                            backend="redis://localhost:6379/1")
+                            broker=os.getenv("REDIS_BROKER_URL"),
+                            backend=os.getenv("REDIS_BACKEND_URL"))
 
 celery_application.conf.update(
     task_serializer="json",
@@ -16,12 +22,15 @@ celery_application.conf.update(
         'creating-mail': {
             'task': 'app.schedulars.email_generation.create_emails',
             'schedule': 36.00,
+            'options': {'queue': 'app2_queue'}
         },
         "sending-mail": {
             'task': 'app.schedulars.email_generation.send_emails',
-            'schedule': 10.00
+            'schedule': 10.00,
+            'options': {'queue': 'app2_queue'}
         }
     }
 )
 
 celery_application.autodiscover_tasks(['app.schedulars.email_generation'])
+

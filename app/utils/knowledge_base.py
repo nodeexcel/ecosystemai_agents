@@ -53,17 +53,22 @@ def fetch_text(message, user_id):
         results = index.query(
             namespace=str(user_id), 
             vector = embedded_query, 
-            top_k = 1,
+            top_k = 5,
             include_metadata=True
             )
 
-        data = results["matches"]
+        matches = results["matches"]
+
+        knowledge_base = ""
         try:
-            metadata = data[1]
-            knowledge_base = metadata.get('chunk_text')
+            for match in matches:
+                metadata = match['metadata']
+                text = metadata.get('text')
+                if not None:
+                    knowledge_base = knowledge_base + text
             return knowledge_base
-        except:
-            return ""
+        except Exception as e:
+            return knowledge_base
 
 def load_and_split_pdf(pdf_path):
     loader = PyPDFLoader(pdf_path)

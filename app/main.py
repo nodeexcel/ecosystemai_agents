@@ -21,9 +21,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = "uploads"
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-
 app.include_router(appointment_setter.router)
 app.include_router(knowledge_base.router)
 app.include_router(email_agent.router)
