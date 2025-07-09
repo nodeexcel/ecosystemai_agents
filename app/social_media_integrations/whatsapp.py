@@ -1,5 +1,6 @@
 
 import requests, os, datetime, uuid
+import redis
 from fastapi import Depends, Query, Request
 from fastapi.routing import APIRouter
 from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse
@@ -201,4 +202,16 @@ def delete_connected_whatsapp_accounts(whatsapp_id, db: Session = Depends(get_db
     db.commit()
     return JSONResponse(content={"success": "account deleted successfully"}, status_code=200)
 
+@router.get("/test-redis")
+def test_redis_connection():
+    redis_url = os.getenv("REDIS_BROKER_URL")
+    try:
+        r = redis.Redis.from_url(redis_url, socket_connect_timeout=3)
+        pong = r.ping()
+        if pong:
+            return {"status": "success", "message": "PONG"}
+        else:
+            return {"status": "error", "message": "No PONG received"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 

@@ -1,4 +1,5 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -33,3 +34,8 @@ app.include_router(seo_agent.router)
 app.include_router(coo_agent.router)
 app.include_router(hr_agent.router)
 app.include_router(content_creation.router)
+
+
+@app.get("/")
+def health_check():
+    return JSONResponse(content={"message": "success"}, status_code=200)

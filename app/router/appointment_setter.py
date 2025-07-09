@@ -35,7 +35,7 @@ def create_appointment_setter_agent(payload: AppointmentSetterSchema, db: Sessio
             return JSONResponse(content={'error': _("Please provide calendar details")}, status_code=422)
     
     if payload.objective_of_the_agent == "web_page":
-        if payload.webpage_link is None or payload.webpage_type is None:
+        if payload.webpage_link is None:
             return JSONResponse(content={'error': _("Please provide webpage details")}, status_code=422)
         
     trigger_platform = payload.sequence.trigger

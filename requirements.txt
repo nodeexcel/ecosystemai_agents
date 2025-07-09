@@ -11,6 +11,7 @@ attrs==25.3.0
 babel==2.17.0
 bcrypt==4.3.0
 billiard==4.2.1
+boto3==1.39.3
 celery==5.5.2
 certifi==2025.4.26
 cffi==1.17.1
