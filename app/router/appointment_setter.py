@@ -12,7 +12,7 @@ from app.models.social_media_integrations import Instagram, Whatsapp
 from app.schemas.appointment_setter import (AppointmentSetterSchema, UpdateAppointmentSetterSchema,
                                             ChatWithAgent, LeadAnalyticsSchema, LeadStatus)
 from app.utils.user_auth import get_current_user
-from app.ai_agents.prompts import Prompts
+from app.prompts.appointment_setter import appointment_setter_prompt  
 from app.ai_agents.appointment_setter import initialise_agent, message_reply_by_agent
 from app.utils.instagram import instagram_send_message
 from app.utils.whatsapp import whatsapp_send_messages
@@ -368,7 +368,7 @@ def test_agent(agent_id, payload: ChatWithAgent, db: Session = Depends(get_db),
     if not thread_id:
         return JSONResponse(content={"error": _("test agent not configured properly")}, status_code=400)
     knowledge_base = fetch_text(payload.message, agent.user_id)
-    prompt = Prompts.appointment_setter_prompt(agent, knowledge_base)
+    prompt = appointment_setter_prompt(agent, knowledge_base)
     appointment_agent = initialise_agent(prompt)
     ai_message = message_reply_by_agent(appointment_agent, payload.message, thread_id)
     response = ai_message.get('response')

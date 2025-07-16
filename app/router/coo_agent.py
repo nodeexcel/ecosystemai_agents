@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.models.get_db import get_async_db, get_db
 from app.models.model import User
 from app.models.coo_agent import CooChatHistory
-from app.ai_agents.prompts import Prompts
+from app.prompts.coo_agent import coo_agent_prompt
 from app.utils.user_auth import get_user_id_from_websocket, get_current_user
 from app.ai_agents.coo_agent import initialise_agent, message_reply_by_agent
 from app.services.babel import get_translator_dependency
@@ -29,11 +29,14 @@ async def coo_agent_chat(id: int, websocket: WebSocket):
     async with get_async_db() as db:
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalars().first()
+        print(user)
         if not user:
             await websocket.send_json({"error": "User does not exist"})
             await websocket.close()
             return
+        print(user.language)
         language = user.language
+        print(language)
 
     while True:
         try:
@@ -47,7 +50,7 @@ async def coo_agent_chat(id: int, websocket: WebSocket):
                     return
     
                 thread_id = chat.thread_id
-                prompt = Prompts.coo_agent_prompt(language)
+                prompt = coo_agent_prompt(language)
                 coo_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(coo_agent, data, thread_id)
 
@@ -60,7 +63,7 @@ async def coo_agent_chat(id: int, websocket: WebSocket):
                     chat.chat_history = chat_history
                     await db.commit()
 
-                await websocket.send_json({'agent': ai_response, 'message_at': str(time_now)})
+                await websocket.send_json({'agent': ai_response, 'language': language, 'message_at': str(time_now)})
 
         except Exception as e:
             await websocket.close()
@@ -104,7 +107,7 @@ async def new_coo_agent_chat(websocket: WebSocket):
                 chat.name = chat_name
                 await db.commit()
 
-                prompt = Prompts.coo_agent_prompt(language)
+                prompt = coo_agent_prompt(language)
                 coo_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(coo_agent, data, thread_id)
 
@@ -128,6 +131,11 @@ def get_coo_chats(db: Session = Depends(get_db), user_id: str = Depends(get_curr
                   , _ = Depends(get_translator_dependency)):
     
     user = db.query(User).filter_by(id=user_id).first()
+    print(user.id)
+    print(user.language)
+    print(user.email)
+    import os
+    print(os.getenv("SQLALCHEMY_DATABASE_URL"))
     if not user:
         return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     

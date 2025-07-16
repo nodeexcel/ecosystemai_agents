@@ -4,7 +4,7 @@ from app.services.celery_app import celery_application
 from app.models.get_db import SessionLocal
 from sqlalchemy import or_ 
 from app.models.email_agent import EmailCampaign, EmailContent
-from app.ai_agents.prompts import Prompts
+from app.prompts.email_agent import email_prompt_generator_agent
 from app.ai_agents.email_agent import email_agent
 
 @celery_application.task
@@ -23,7 +23,7 @@ def create_emails():
             pass
         else:
             scheduled_time = campaign.send_time_window
-            prompt = Prompts.email_prompt_generator_agent(campaign)
+            prompt = email_prompt_generator_agent(campaign)
             response = email_agent(prompt)
             if campaign.review == True:
                 email_content = EmailContent(content=response, scheduled_date=tomorrow_date,

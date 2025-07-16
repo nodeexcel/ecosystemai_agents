@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.models.get_db import get_async_db, get_db
 from app.models.model import User
 from app.models.seo_agent import SeoChatHistory
-from app.ai_agents.prompts import Prompts
+from app.prompts.seo_agent import seo_agent_prompt
 from app.utils.user_auth import get_user_id_from_websocket, get_current_user
 from app.ai_agents.seo_agent import initialise_agent, message_reply_by_agent
 from app.services.babel import get_translator_dependency
@@ -48,7 +48,7 @@ async def seo_agent_chat(id: int, websocket: WebSocket):
                 thread_id = chat.thread_id
 
 
-                prompt = Prompts.seo_agent_prompt(language)
+                prompt = seo_agent_prompt(language)
                 seo_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(seo_agent, data, thread_id)
 
@@ -105,7 +105,7 @@ async def new_seo_agent_chat(websocket: WebSocket):
                 chat.name = chat_name
                 await db.commit()
 
-                prompt = Prompts.seo_agent_prompt(language)
+                prompt = seo_agent_prompt(language)
                 seo_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(seo_agent, data, thread_id)
 

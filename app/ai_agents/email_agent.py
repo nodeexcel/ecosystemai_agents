@@ -1,6 +1,6 @@
 import os, json, html
 from langchain_openai import ChatOpenAI
-from .prompts import Prompts
+from app.prompts.email_agent import email_validation
 
 
 llm = ChatOpenAI(
@@ -15,7 +15,7 @@ def email_agent(prompt):
     email_prompt = ai_message.content
     ai_message = llm.invoke([("system", email_prompt)])
     email = ai_message.content
-    email_correction_prompt = Prompts.email_validation()
+    email_correction_prompt = email_validation()
     ai_response = llm.invoke([("system", email_correction_prompt), ("human", email)])
     ai_response = ai_response.content
     if ai_response.startswith('"') and ai_response.endswith('"'):

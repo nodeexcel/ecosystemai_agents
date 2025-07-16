@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.models.get_db import get_async_db, get_db
 from app.models.model import User
 from app.models.account_agent import AccountChatHistory
-from app.ai_agents.prompts import Prompts
+from app.prompts.accounting_agent import accounting_agent_prompt
 from app.utils.user_auth import get_user_id_from_websocket, get_current_user
 from app.ai_agents.account_agent import initialise_agent, message_reply_by_agent
 from app.services.babel import get_translator_dependency
@@ -47,7 +47,7 @@ async def accounting_chat(id: int, websocket: WebSocket):
                 thread_id = chat.thread_id
                 language = user.language
 
-                prompt = Prompts.accounting_agent(language)
+                prompt = accounting_agent_prompt(language)
                 accounting_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(accounting_agent, data, thread_id)
 
@@ -104,7 +104,7 @@ async def new_accounting_chat(websocket: WebSocket):
                 chat.name = chat_name
                 await db.commit()
                 
-                prompt = Prompts.accounting_agent(language)
+                prompt = accounting_agent_prompt(language)
                 accounting_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(accounting_agent, data, thread_id)
 

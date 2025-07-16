@@ -6,7 +6,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from concurrent.futures import ThreadPoolExecutor
 
 
-from app.ai_agents.prompts import Prompts
+from app.prompts.knowledge_base import website_info_prompt
 from app.services.pinecone import pinecone_db
 
 llm = ChatOpenAI(
@@ -15,7 +15,7 @@ llm = ChatOpenAI(
 )
 
 def website_scrape(website_link):
-    prompt = Prompts.website_info_prompt()
+    prompt = website_info_prompt()
     messages = [
     (
         "system", prompt

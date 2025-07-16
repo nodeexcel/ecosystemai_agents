@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.models.get_db import get_async_db, get_db
 from app.models.model import User
 from app.models.hr_agent import HrChatHistory
-from app.ai_agents.prompts import Prompts
+from app.prompts.hr_agent import hr_agent_prompt
 from app.utils.user_auth import get_user_id_from_websocket, get_current_user
 from app.ai_agents.hr_agent import initialise_agent, message_reply_by_agent
 from app.services.babel import get_translator_dependency
@@ -48,7 +48,7 @@ async def hr_agent_chat(id: int, websocket: WebSocket):
                 thread_id = chat.thread_id
 
 
-                prompt = Prompts.hr_agent_prompt(language)
+                prompt = hr_agent_prompt(language)
                 hr_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(hr_agent, data, thread_id)
 
@@ -105,7 +105,7 @@ async def new_hr_agent_chat(websocket: WebSocket):
                 chat.name = chat_name
                 await db.commit()
 
-                prompt = Prompts.hr_agent_prompt(language)
+                prompt = hr_agent_prompt(language)
                 hr_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(hr_agent, data, thread_id)
 

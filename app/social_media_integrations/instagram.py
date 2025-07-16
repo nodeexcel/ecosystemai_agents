@@ -16,7 +16,7 @@ from app.schemas.social_media_integration import (InstagramCallback,
 from app.utils.instagram import (user_authorization, long_lived_access_token, instagram_user_info,
                                 instagram_send_message, image_to_text, instagram_message_invalid_type)
 from app.utils.user_auth import get_current_user
-from app.ai_agents.prompts import Prompts
+from app.prompts.appointment_setter import appointment_setter_prompt 
 from app.ai_agents.appointment_setter import initialise_agent, message_reply_by_agent
 from app.utils.knowledge_base import fetch_text
 
@@ -152,7 +152,7 @@ def instagram_message_webhook(request: InstagramMessageAlert, db: Session = Depe
         return JSONResponse({"sucess": ""}, status_code=200)
     
     knowledge_base = fetch_text(text, agent.user_id)
-    prompt = Prompts.appointment_setter_prompt(agent, knowledge_base)
+    prompt = appointment_setter_prompt(agent, knowledge_base)
     appointment_agent = initialise_agent(prompt)
     ai_message = message_reply_by_agent(appointment_agent, text, thread_id)
     

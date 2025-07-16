@@ -10,7 +10,7 @@ from app.models.get_db import get_async_db, get_db
 from app.models.model import User
 from app.models.content_creation_agent import ContentCreationChatHistory, Content
 from app.schemas.content_creation import NameUpdate, PredisCheck, ContentCreateSchema
-from app.ai_agents.prompts import Prompts
+from app.prompts.content_creation import content_creation_agent_prompt
 from app.utils.user_auth import get_user_id_from_websocket, get_current_user
 from app.ai_agents.content_creation_agent import initialise_agent, message_reply_by_agent
 from app.services.babel import get_translator_dependency
@@ -44,7 +44,7 @@ async def content_creation_chat(id: int, websocket: WebSocket):
                     return
     
                 thread_id = chat.thread_id
-                prompt = Prompts.content_creation_agent_prompt(language)
+                prompt = content_creation_agent_prompt(language)
                 content_creation_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(content_creation_agent, data, thread_id)
 
@@ -102,7 +102,7 @@ async def new_content_creation_chat(websocket: WebSocket):
                 chat.name = chat_title
                 await db.commit()
 
-                prompt = Prompts.content_creation_agent_prompt(language)
+                prompt = content_creation_agent_prompt(language)
                 content_creation_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(content_creation_agent, data, thread_id)
 

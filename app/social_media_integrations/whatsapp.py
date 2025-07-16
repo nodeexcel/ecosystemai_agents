@@ -18,7 +18,7 @@ from app.utils.whatsapp import (generate_short_lived_access_token, long_lived_ac
                                 get_phone_number, whatsapp_send_messages, get_image_url, image_to_text,
                                 invalid_whatsapp_send_messages)
 from app.utils.user_auth import get_current_user
-from app.ai_agents.prompts import Prompts
+from app.prompts.appointment_setter import appointment_setter_prompt
 from app.ai_agents.appointment_setter import initialise_agent, message_reply_by_agent
 from app.utils.knowledge_base import fetch_text
 
@@ -150,7 +150,7 @@ def whatsapp_message_webhook(request: InstagramMessageAlert, db: Session = Depen
         return JSONResponse({"sucess": ""}, status_code=200)
     
     knowledge_base = fetch_text(text, agent.user_id)
-    prompt = Prompts.appointment_setter_prompt(agent, knowledge_base)
+    prompt = appointment_setter_prompt(agent, knowledge_base)
     appointment_agent = initialise_agent(prompt)
     ai_message = message_reply_by_agent(appointment_agent, text, thread_id)
     
