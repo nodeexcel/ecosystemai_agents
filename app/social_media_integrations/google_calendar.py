@@ -66,7 +66,7 @@ def google_callback(code, state, db: Session = Depends(get_db)):
             db.commit()
     # get_freebusy_time(access_token)
     # create_meeting(access_token)
-    return RedirectResponse(url="http://116.202.210.102:3089/dashboard/brain", status_code=303)
+    return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
 
 @router.get("/get-calendar-accounts")
 def get_google_calendar_accounts(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):

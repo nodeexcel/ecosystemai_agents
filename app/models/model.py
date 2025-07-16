@@ -30,7 +30,7 @@ class User(Base):
     firstName = Column(String(50), nullable=True)
     lastName = Column(String(50), nullable=True)
     phoneNumber = Column(String(20), nullable=True)
-    image = Column(String(100), nullable=True)
+    image = Column(String(255), nullable=True)
     email = Column(String(100), unique=True, nullable=False)
     password = Column(String(255), nullable=True)
     city = Column(String(30), nullable=True)

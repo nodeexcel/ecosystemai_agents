@@ -20,7 +20,6 @@ def generate_short_lived_access_token(code):
 
 def long_lived_access_token(access_token):
     
-    print(access_token)
     params = {
         'grant_type': "fb_exchange_token",
         'client_id': os.getenv('FACEBOOK_CLIENT_ID'),

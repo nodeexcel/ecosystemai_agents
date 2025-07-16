@@ -10,8 +10,7 @@ class Sequence(BaseModel):
     
 class FollowUPConfig(BaseModel):
     number_of_followups: Union[int, None] = None
-    min_time: Union[int, None] = None
-    max_time: Union[int, None] = None
+    wait_time_for_follow_up: Union[int, None] = None
 
 class AppointmentSetterSchema(BaseModel):
     agent_name: str

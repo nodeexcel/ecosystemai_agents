@@ -36,8 +36,11 @@ def message_reply_by_agent(appointment_agent, user_query, thread_id):
     response = appointment_agent.invoke({"messages": [{"role": "user", "content": user_query}]},
                                         config=config)
     ai_response = response["messages"][-1].content
-    ai_response = json.loads(ai_response)
-    
+    print(ai_response, "dfghjklkjhgfd")
+    try:
+        ai_response = json.loads(ai_response)
+    except:
+        ai_response = {"response": ai_response, "lead_qualification_status": "engaged"}
     return ai_response
 
 
