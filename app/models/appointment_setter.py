@@ -29,6 +29,7 @@ class AppointmentSetter(Base):
     follow_up_details = Column(JSONB, nullable=True)
     emoji_frequency = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True)
+    first_message = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     
 class AppointmentAgentLeads(Base):

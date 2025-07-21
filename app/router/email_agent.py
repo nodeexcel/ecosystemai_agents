@@ -24,11 +24,11 @@ def create_a_email_campaign(payload: EmailCampaignCreation, db: Session = Depend
         return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     if payload.cta_type == "book_a_meeting":
-        if payload.calender_choosed is None:
+        if not payload.calender_choosed:
             return JSONResponse(content={'error': _("Need to provide calendar type")}, status_code=422)
         
     if payload.cta_type == "purchase" or "visit_a_page" or "reply":
-        if payload.url is None:
+        if not payload.url:
             return JSONResponse(content={'error': _("Need to provide url")}, status_code=422)
         
     email_campaign = EmailCampaign(**payload.model_dump(), user_id=user_id)
@@ -137,11 +137,11 @@ def update_email_campign(campaign_id, payload: UpdateEmailCampaign,  db: Session
         return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     if payload.cta_type == "book_a_meeting":
-        if payload.calender_choosed is None:
+        if not payload.calender_choosed:
             return JSONResponse(content={'error': _("Need to provide calendar type")}, status_code=422)
         
     if payload.cta_type == "purchase" or "visit_a_page" or "reply":
-        if payload.url is None:
+        if not payload.url:
             return JSONResponse(content={'error': _("Need to provide url")}, status_code=422)
         
     campaign = db.query(EmailCampaign).filter_by(id=campaign_id, user_id=user_id).first()

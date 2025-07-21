@@ -22,7 +22,7 @@ class AppointmentSetterSchema(BaseModel):
     whatsapp_number: str
     business_description: str = Field(min_length=50)
     your_business_offer: str =  Field(min_length=50)
-    platform_unique_id: str
+    platform_unique_id: str = Field(min_length=5)
     qualification_questions: list[str]
     sequence: Sequence
     objective_of_the_agent: Optional[str]
@@ -32,6 +32,7 @@ class AppointmentSetterSchema(BaseModel):
     is_followups_enabled: bool = False
     follow_up_details: FollowUPConfig
     emoji_frequency: int
+    first_message: str = Field(default=None, min_length=10)
     
 class UpdateAppointmentSetterSchema(BaseModel):
     agent_name: Optional[str] = None
@@ -53,6 +54,7 @@ class UpdateAppointmentSetterSchema(BaseModel):
     is_followups_enabled: Optional[bool] = None
     follow_up_details: Optional[FollowUPConfig] = None
     emoji_frequency: Optional[int] = None
+    first_message: Optional[str] = None
     
 class ChatWithAgent(BaseModel):
     message: str

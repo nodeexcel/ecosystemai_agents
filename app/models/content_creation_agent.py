@@ -36,4 +36,46 @@ class Content(Base):
     created_at = Column(DateTime, nullable=False)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"))
     
+class LinkedInPost(Base):
+    
+    __tablename__ = "linkedin_post"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    generated_content = Column(String, nullable=False)
+    topic = Column(String, nullable=False)
+    tone = Column(String, nullable=False)
+    custom_instructions = Column(String, nullable=True)
+    prompt = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=False)
+    user = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    
+class XPost(Base):
+    
+    __tablename__ = "x_post"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    generated_content = Column(String, nullable=False)
+    topic = Column(String, nullable=False)
+    purpose = Column(String, nullable=False)
+    custom_instructions = Column(String, nullable=True)
+    prompt = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=False)
+    user = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    
+class YoutubeScript(Base):
+    
+    __tablename__ = "youtube_script"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    generated_content = Column(String, nullable=False)
+    topic = Column(String, nullable=False)
+    custom_instructions = Column(String, nullable=True)
+    prompt = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=False)
+    user = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    
+    
+    
+    
+    
     

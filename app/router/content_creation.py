@@ -8,11 +8,14 @@ from sqlalchemy.orm import Session
 
 from app.models.get_db import get_async_db, get_db
 from app.models.model import User
-from app.models.content_creation_agent import ContentCreationChatHistory, Content
-from app.schemas.content_creation import NameUpdate, PredisCheck, ContentCreateSchema
-from app.prompts.content_creation import content_creation_agent_prompt
+from app.models.content_creation_agent import (ContentCreationChatHistory, Content,
+                                               LinkedInPost, XPost, YoutubeScript)
+from app.schemas.content_creation import (NameUpdate, PredisCheck, ContentCreateSchema,
+                                          LinkedInPostSchema, ContentUpdateSchema, XPostSchema, YoutubeScriptSchema)
+from app.prompts.content_creation import (content_creation_agent_prompt, linked_post_prompt_generation,
+                                          x_post_prompt_generator, youtube_script_prompt_generator)
 from app.utils.user_auth import get_user_id_from_websocket, get_current_user
-from app.ai_agents.content_creation_agent import initialise_agent, message_reply_by_agent
+from app.ai_agents.content_creation_agent import initialise_agent, message_reply_by_agent, text_content_generation
 from app.services.babel import get_translator_dependency
 from app.utils.chatbots import summarizing_initial_chat
 
@@ -222,7 +225,7 @@ def create_content(payload: ContentCreateSchema, db: Session = Depends(get_db),
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
-    if payload.post_type == 'quotes' and payload.author is None:
+    if payload.post_type == 'quotes' and not payload.author:
         return JSONResponse(content={"error": "please provide author for quotes"}, status_code=400)
     
     text = payload.text.split()
@@ -296,6 +299,161 @@ def content_generation_status(content_id: str, db: Session = Depends(get_db), us
     if content.post_status == 'completed':
         return JSONResponse(content={'status': 'completed', 'message': 'content generation is completed', 'media_type': content.media_type,
                                      'media_urls': content.media_urls, 'caption': content.caption}, status_code=200)
+ 
+ 
+@router.post("/linkedin-post")
+def linked_post_generation(payload: LinkedInPostSchema,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
+    language = user.language
+    prompt = linked_post_prompt_generation(payload.tone, payload.topic, payload.custom_instructions, language)
+    generated_prompt, generated_content = text_content_generation(prompt)
+
+    linkedin_post = LinkedInPost(**payload.model_dump(), generated_content=generated_content,
+                                 prompt=generated_prompt, user=user_id)
     
+    db.add(linkedin_post)
+    db.commit()
     
+    return JSONResponse(content={"success": "content generated successfully"}, status_code=201)
+
+@router.get("/linkedin-post")
+def get_linked_post(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    linkedin_posts = db.query(LinkedInPost).filter_by(user=user_id).all()
+    
+    response = []
+    
+    for linkedin_post in linkedin_posts:
+        linkedin_post_data = {}
+        linkedin_post_data['id'] = linkedin_post.id 
+        linkedin_post_data['created_at'] = str(linkedin_post.created_at)
+        linkedin_post_data['generated_content'] = linkedin_post.generated_content
+        response.append(linkedin_post_data)
+    return JSONResponse(content={"linkedin_posts": response}, status_code=200)
+
+@router.patch("/linkedin-post/{post_id}")
+def update_linked_post(post_id: int, payload: ContentUpdateSchema, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    linkedin_post = db.query(LinkedInPost).filter_by(id=post_id, user=user_id).first()
+    
+    if not linkedin_post:
+        return JSONResponse(content={"error": "Post is not associated to you"}, status_code=404) 
+    
+    linkedin_post.generated_content = payload.content
+    db.commit()    
+    
+    return JSONResponse(content={"success": "content updated successfully"}, status_code=200)
+
+@router.post("/X-post")
+def X_post_generation(payload: XPostSchema,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    language = user.language
+    prompt = x_post_prompt_generator(payload.topic, payload.purpose, payload.custom_instructions, language)
+    generated_prompt, generated_content = text_content_generation(prompt)
+
+    x_post = XPost(**payload.model_dump(), generated_content=generated_content,
+                                 prompt=generated_prompt, user=user_id)
+    
+    db.add(x_post)
+    db.commit()
+    
+    return JSONResponse(content={"success": "content generated successfully"}, status_code=201)
+
+@router.get("/X-post")
+def get_x_post(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    x_posts = db.query(XPost).filter_by(user=user_id).all()
+    
+    response = []
+    
+    for x_post in x_posts:
+        x_post_data = {}
+        x_post_data['id'] = x_post.id 
+        x_post_data['created_at'] = str(x_post.created_at)
+        x_post_data['generated_content'] = x_post.generated_content
+        response.append(x_post_data)
+    return JSONResponse(content={"x_posts": response}, status_code=200)
+
+@router.patch("/X-post/{post_id}")
+def update_x_post(post_id: int, payload: ContentUpdateSchema, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    x_post = db.query(XPost).filter_by(id=post_id, user=user_id).first()
+    
+    if not x_post:
+        return JSONResponse(content={"error": "Post is not associated to you"}, status_code=404) 
+    
+    x_post.generated_content = payload.content
+    db.commit()    
+    
+    return JSONResponse(content={"success": "content updated successfully"}, status_code=200)
+
+
+@router.post("/youtube-script-writer")
+def X_post_generation(payload: YoutubeScriptSchema,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    language = user.language
+    prompt = x_post_prompt_generator(payload.topic, payload.custom_instructions, language)
+    generated_prompt, generated_content = text_content_generation(prompt)
+
+    youtube_script = YoutubeScriptSchema(**payload.model_dump(), generated_content=generated_content,
+                                 prompt=generated_prompt, user=user_id)
+    
+    db.add(youtube_script)
+    db.commit()
+    
+    return JSONResponse(content={"success": "content generated successfully"}, status_code=201)
+
+@router.get("/youtube-script-writer")
+def get_x_post(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    youtube_scripts = db.query(YoutubeScript).filter_by(user=user_id).all()
+    
+    response = []
+    
+    for youtube_script in youtube_scripts:
+        youtube_script_data = {}
+        youtube_script_data['id'] = youtube_script.id 
+        youtube_script_data['created_at'] = str(youtube_script.created_at)
+        youtube_script_data['generated_content'] = youtube_script.generated_content
+        response.append(youtube_script_data)
+    return JSONResponse(content={"youtube_scripts": response}, status_code=200)
+
+@router.patch("/youtube-script-writer/{post_id}")
+def update_x_post(post_id: int, payload: ContentUpdateSchema, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    youtube_script = db.query(YoutubeScript).filter_by(id=post_id, user=user_id).first()
+    
+    if not youtube_script:
+        return JSONResponse(content={"error": "Post is not associated to you"}, status_code=404) 
+    
+    youtube_script.generated_content = payload.content
+    db.commit()    
+    
+    return JSONResponse(content={"success": "content updated successfully"}, status_code=200)

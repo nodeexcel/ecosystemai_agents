@@ -20,3 +20,23 @@ class ContentCreateSchema(BaseModel):
     video_duration: Optional[str] = None
     author: Optional[str] = None
     created_at: datetime
+    
+class LinkedInPostSchema(BaseModel):
+    topic: str
+    custom_instructions: Optional[str] = None
+    tone: Literal['professional', 'casual', 'friendly', 'formal', 'inspirational', 'humorous']
+    created_at: datetime
+    
+class ContentUpdateSchema(BaseModel):
+    content: str
+    
+class XPostSchema(BaseModel):
+    topic: str
+    custom_instructions: Optional[str] = None
+    purpose: str
+    created_at: datetime
+    
+class YoutubeScriptSchema(BaseModel):
+    topic: str
+    custom_instructions: Optional[str] = None
+    created_at: datetime

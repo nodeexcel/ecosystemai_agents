@@ -31,11 +31,11 @@ def create_appointment_setter_agent(payload: AppointmentSetterSchema, db: Sessio
         return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     if payload.objective_of_the_agent == "book_a_meeting":
-        if payload.calendar_choosed is None or payload.calendar_id is None:
+        if not payload.calendar_choosed or not payload.calendar_id :
             return JSONResponse(content={'error': _("Please provide calendar details")}, status_code=422)
     
     if payload.objective_of_the_agent == "web_page":
-        if payload.webpage_link is None:
+        if not payload.webpage_link:
             return JSONResponse(content={'error': _("Please provide webpage details")}, status_code=422)
         
     trigger_platform = payload.sequence.trigger
@@ -112,6 +112,7 @@ def get_appointment_setter_agent_details(agent_id, db: Session = Depends(get_db)
             'is_followups_enabled': agent.is_followups_enabled,
             'follow_up_details': agent.follow_up_details,
             'emoji_frequency': agent.emoji_frequency,
+            'first_message': agent.first_message,
             }
         return JSONResponse(content={'agent': agent_info}, status_code=200)
     return JSONResponse(content={'error': _('Agent does not exist')}, status_code=404)
@@ -152,8 +153,12 @@ def updating_appointment_agent(agent_id, payload: UpdateAppointmentSetterSchema,
         return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
     if payload.objective_of_the_agent == "book_a_meeting":
-        if payload.calendar_choosed is None or payload.calendar_id is None:
+        if not payload.calendar_choosed or not payload.calendar_id:
             return JSONResponse(content={'error': _("Please provide calendar details")}, status_code=422)
+        
+    if payload.objective_of_the_agent == "web_page":
+        if not payload.webpage_link:
+            return JSONResponse(content={'error': _("Please provide webpage details")}, status_code=422)
     
     trigger_platform = payload.sequence.trigger
         
