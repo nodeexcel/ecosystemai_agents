@@ -1,6 +1,8 @@
-import os, uuid, datetime, time, requests
+import os, uuid, datetime, requests
+from datetime import date, time, timezone
+from typing import Optional
 
-from fastapi import WebSocket, Depends
+from fastapi import WebSocket, Depends, File, UploadFile, Form
 from fastapi.routing import APIRouter
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
@@ -9,15 +11,20 @@ from sqlalchemy.orm import Session
 from app.models.get_db import get_async_db, get_db
 from app.models.model import User
 from app.models.content_creation_agent import (ContentCreationChatHistory, Content,
-                                               LinkedInPost, XPost, YoutubeScript)
+                                               LinkedInPost, XPost, YoutubeScript, ScheduledContent)
+from app.models.social_media_integrations import Instagram, LinkedIn
 from app.schemas.content_creation import (NameUpdate, PredisCheck, ContentCreateSchema,
-                                          LinkedInPostSchema, ContentUpdateSchema, XPostSchema, YoutubeScriptSchema)
+                                          LinkedInPostSchema, ContentUpdateSchema, XPostSchema,
+                                          YoutubeScriptSchema)
 from app.prompts.content_creation import (content_creation_agent_prompt, linked_post_prompt_generation,
                                           x_post_prompt_generator, youtube_script_prompt_generator)
 from app.utils.user_auth import get_user_id_from_websocket, get_current_user
 from app.ai_agents.content_creation_agent import initialise_agent, message_reply_by_agent, text_content_generation
 from app.services.babel import get_translator_dependency
+from app.services.aws_boto3 import aws_client, get_upload_args
 from app.utils.chatbots import summarizing_initial_chat
+from app.utils.instagram import publish_content_instagram
+from app.utils.linkedin import publish_content_linkedin
 
 router = APIRouter(tags=["content-creation-agent"])
 
@@ -407,16 +414,16 @@ def update_x_post(post_id: int, payload: ContentUpdateSchema, db: Session = Depe
 
 
 @router.post("/youtube-script-writer")
-def X_post_generation(payload: YoutubeScriptSchema,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def youtube_script_generation(payload: YoutubeScriptSchema,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
     language = user.language
-    prompt = x_post_prompt_generator(payload.topic, payload.custom_instructions, language)
+    prompt = youtube_script_prompt_generator(payload.topic, payload.custom_instructions, language)
     generated_prompt, generated_content = text_content_generation(prompt)
 
-    youtube_script = YoutubeScriptSchema(**payload.model_dump(), generated_content=generated_content,
+    youtube_script = YoutubeScript(**payload.model_dump(), generated_content=generated_content,
                                  prompt=generated_prompt, user=user_id)
     
     db.add(youtube_script)
@@ -425,7 +432,7 @@ def X_post_generation(payload: YoutubeScriptSchema,  db: Session = Depends(get_d
     return JSONResponse(content={"success": "content generated successfully"}, status_code=201)
 
 @router.get("/youtube-script-writer")
-def get_x_post(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def get_youtube_script(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
@@ -443,7 +450,7 @@ def get_x_post(db: Session = Depends(get_db), user_id: str = Depends(get_current
     return JSONResponse(content={"youtube_scripts": response}, status_code=200)
 
 @router.patch("/youtube-script-writer/{post_id}")
-def update_x_post(post_id: int, payload: ContentUpdateSchema, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+def update_youtube_script(post_id: int, payload: ContentUpdateSchema, db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
@@ -457,3 +464,191 @@ def update_x_post(post_id: int, payload: ContentUpdateSchema, db: Session = Depe
     db.commit()    
     
     return JSONResponse(content={"success": "content updated successfully"}, status_code=200)
+
+
+@router.post("/schedule-content/draft")
+def schedule_content(text: str = Form(...),
+                     document: Optional[UploadFile] = File(None),
+                     platform: str = Form(...),
+                     media_type: str = Form(...),
+                     platform_unique_id: str = Form(...),
+                     db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    if platform not in ('instagram', 'linkedin', 'X'):
+        return JSONResponse(content={'error': "Platform not supported"}, status_code=400)
+    
+    if not platform_unique_id:
+        return JSONResponse(content={'error': "account not selected"}, status_code=400)
+    
+    if platform=="instagram":
+        if not document:
+            return JSONResponse(content={'error': "image or video is madatory with instagram"}, status_code=400)
+        if not document.filename.endswith((".jpeg", ".png", ".mp4")):
+            return JSONResponse(content={'error': 'instagram does not support this media type'}, status_code=400)
+        
+    if platform == "linkedin":
+        
+        linkedin = db.query(LinkedIn).filter_by(linkedin_id=platform_unique_id).first()
+        
+        if not linkedin:
+            return JSONResponse(content={'error': 'linkedin account not connected'}, status_code=400)
+    
+    try:
+        file_path = ""
+        if document:
+            upload_args = get_upload_args(document.filename)
+            
+            file_path = f"content-document/{user.email}/{uuid.uuid4()}_{document.filename}"
+            
+            aws_client.upload_fileobj(Fileobj=document.file, 
+                            Bucket=os.getenv('BUCKET_NAME'), Key=file_path,
+                            ExtraArgs=upload_args)
+    except Exception as e:
+            print(e)
+            return JSONResponse(content={"error": "could not upload document"}, status_code=500)
+    
+    content = ScheduledContent(text=text, document=file_path, platform=platform, platform_unique_id=platform_unique_id,
+                               scheduled_type='draft', media_type=media_type, user_id=user_id) 
+    db.add(content)
+    db.commit()
+    
+    return JSONResponse(content={'success': "Content saved as draft"}, status_code=201)
+
+@router.post("/schedule-content/publish")
+def schedule_content(text: str = Form(...),
+                     document: Optional[UploadFile] = File(None),
+                     platform: str = Form(...),
+                     media_type: str = Form(...),
+                     platform_unique_id: str = Form(...),
+                     db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    if platform not in ('instagram', 'linkedin', 'X'):
+        return JSONResponse(content={'error': "Platform not supported"}, status_code=400)
+    
+    if not platform_unique_id:
+        return JSONResponse(content={'error': "account not selected"}, status_code=400)
+    
+    if platform=="instagram":
+        if not document:
+            return JSONResponse(content={'error': "image or video is mandatory with instagram"}, status_code=400)
+        if not document.filename.endswith((".jpeg", ".png", ".mp4")):
+            return JSONResponse(content={'error': 'instagram does not support this media type'}, status_code=400)
+    
+    try:
+        file_path = ""
+        
+        if document:
+            upload_args = get_upload_args(document.filename)
+        
+            file_path = f"content-document/{user.email}/{uuid.uuid4()}_{document.filename}"
+        
+            aws_client.upload_fileobj(Fileobj=document.file, 
+                        Bucket=os.getenv('BUCKET_NAME'), Key=file_path,
+                        ExtraArgs=upload_args)
+    except Exception as e:
+            print(e)
+            return JSONResponse(content={"error": "could not upload document"}, status_code=500)
+        
+    if platform == "instagram":
+        
+        instagram = db.query(Instagram).filter_by(instagram_user_id=platform_unique_id).first()
+        
+        if not instagram:
+            return JSONResponse(content={'error': 'instagram account not connected'}, status_code=400)
+        
+        media_url = os.getenv("S3_BASE_URL") + f"/{file_path}"
+        
+        media_id = publish_content_instagram(instagram.access_token, instagram.refresh_token, platform_unique_id, media_type, media_url, text)
+    
+    if platform == "linkedin":
+        
+        linkedin = db.query(LinkedIn).filter_by(linkedin_id=platform_unique_id).first()
+        
+        if not linkedin:
+            return JSONResponse(content={'error': 'linkedin account not connected'}, status_code=400)
+        
+        response, status_code = publish_content_linkedin(linkedin.access_token, linkedin.linkedin_id, text)
+        
+        if status_code != 201:
+            return JSONResponse(content={"error": "could not publish"}, status_code=400)
+
+        media_id = response.get("x-restli-id")
+        
+    published_time = datetime.datetime.now(timezone.utc)
+    
+    content = ScheduledContent(text=text, document=file_path, platform=platform, platform_unique_id=platform_unique_id,
+                               scheduled_type='publish', media_id=media_id, media_type=media_type,
+                               published_time=published_time, user_id=user_id)
+    db.add(content)
+    db.commit()
+    
+    return JSONResponse(content={'success': "Content published"}, status_code=201)
+
+@router.post("/schedule-content/scheduled")
+def schedule_content(text: str = Form(...),
+                     document: Optional[UploadFile] = File(None),
+                     platform: str = Form(...),
+                     platform_unique_id: str = Form(...),
+                     media_type: str = Form(...),
+                     scheduled_date: date = Form(...),
+                     scheduled_time: time = Form(...),
+                     db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    if platform not in ('instagram', 'linkedin', 'X'):
+        return JSONResponse(content={'error': "Platform not supported"}, status_code=400)
+    
+    if not platform_unique_id:
+        return JSONResponse(content={'error': "account not selected"}, status_code=400)
+    
+    if platform == "instagram":
+        if not document:
+            return JSONResponse(content={'error': "image or video is mandatory with instagram"}, status_code=400)
+        if not document.filename.endswith((".jpeg", ".png", ".mp4")):
+            return JSONResponse(content={'error': 'instagram does not support this media type'}, status_code=400)
+        
+        instagram = db.query(Instagram).filter_by(instagram_user_id=platform_unique_id).first()
+        
+        if not instagram:
+            return JSONResponse(content={'error': 'instagram account not connected'}, status_code=404)
+    
+    if platform == "linkedin":
+        linkedin = db.query(LinkedIn).filter_by(linkedin_id=platform_unique_id).first()
+        
+        if not linkedin:
+            return JSONResponse(content={'error': 'instagram account not connected'}, status_code=400)
+    
+    try:
+        file_path = ""
+        if document:
+            upload_args = get_upload_args(document.filename)
+            file_path = f"content-document/{user.email}/{uuid.uuid4()}_{document.filename}"
+            aws_client.upload_fileobj(Fileobj=document.file, 
+                            Bucket=os.getenv('BUCKET_NAME'), Key=file_path,
+                            ExtraArgs=upload_args)
+    except Exception as e:
+            print(e)
+            return JSONResponse(content={"error": "could not upload document"}, status_code=500)
+    
+    content = ScheduledContent(text=text, document=file_path, platform=platform, platform_unique_id=platform_unique_id,
+                               scheduled_type='schedule',scheduled_date=scheduled_date,
+                               scheduled_time=scheduled_time, media_type=media_type, user_id=user_id)
+    db.add(content)
+    db.commit()
+    
+    return JSONResponse(content={'success': "Content is scheduled"}, status_code=201)
+    
+    
+    
+    

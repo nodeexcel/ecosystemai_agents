@@ -77,6 +77,8 @@ def instagram_callback_url(request: InstagramCallback = Depends(), db: Session =
     instagram_user = db.query(Instagram).filter_by(instagram_user_id=instagram_user_id).first()
     
     if instagram_user:
+        instagram_user.access_token = access_token
+        db.commit()
         return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
     
     instagram_user = Instagram(instagram_user_id=instagram_user_id, instagram_id=instagram_id, username=username, name=name,
@@ -202,5 +204,5 @@ def delete_connected_insta_accounts(instagram_id, db: Session = Depends(get_db),
     db.delete(account)
     db.commit()
     return JSONResponse(content={"success": "account deleted successfully"}, status_code=200)
-        
+
 

@@ -11,7 +11,9 @@ ALLOWED_MIME_TYPES = {
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'image/png',
     'image/jpeg',
-    'image/webp'
+    'image/webp',
+    'video/mp4',
+    'video/webm',
 }
 
 def get_upload_args(filename):
@@ -21,7 +23,7 @@ def get_upload_args(filename):
         raise ValueError(f"File type not allowed: {mimetype}")
 
     content_disposition = 'attachment'
-    if mimetype.startswith('image/') or mimetype == 'application/pdf':
+    if mimetype.startswith(('image/', 'video/')) or mimetype == 'application/pdf':
         content_disposition = 'inline'
 
     return {

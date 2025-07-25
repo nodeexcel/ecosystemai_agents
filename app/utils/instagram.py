@@ -1,4 +1,5 @@
 import os, requests
+from fastapi import HTTPException
 from app.services.openai_service import openai_client
 
 def user_authorization(code):
@@ -82,6 +83,57 @@ def instagram_message_invalid_type(access_token, recipient_id):
     }
     
     response = requests.post(url, headers=headers, json=data)
+    
+def publish_content_instagram(access_token, refresh_token, instagram_user_id, media_type, media_url, caption):
+    
+    url = f"https://graph.instagram.com/v23.0/{instagram_user_id}/media"
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    if media_type == "image":
+        payload = {
+            "caption": caption,
+            "image_url": media_url
+        }
+        
+    if media_type == "video":
+        payload = {
+            "caption": caption,
+            "video_url": media_url
+        }
+
+    response = requests.post(url, headers=headers, data=payload)
+    
+    if response.status_code != 200:
+        return HTTPException(detail="Could not publish content", status_code=500)
+    response = response.json()
+    
+    container_id = response.get("id")
+    
+    url = f"https://graph.instagram.com/v23.0/{instagram_user_id}/media_publish"
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    payload ={
+        "creation_id": container_id 
+    }
+    
+    response = requests.post(url, headers=headers, data=payload)
+    
+    if response.status_code != 200:
+        return HTTPException(detail="Could not publish content", status_code=500)
+    
+    response = response.json()
+    
+    media_id = response.get("media_id")
+    
+    return media_id
     
 
 def image_to_text(image_url):

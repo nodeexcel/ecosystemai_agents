@@ -39,3 +39,13 @@ class GoogleCalendar(Base):
     refresh_token = Column(String, nullable=False)
     expiry_time = Column(DateTime)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"))
+    
+class LinkedIn(Base):
+    __tablename__ = "linkedin_connection_details"
+    
+    linkedin_id = Column(String, primary_key=True)
+    email = Column(String, nullable=False)
+    name = Column(String, nullable=True)
+    access_token = Column(String, nullable=False)
+    refresh_token = Column(String, nullable=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"))

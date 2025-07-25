@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date, time
 from pydantic import BaseModel, Field
 from typing import Optional, Literal
 
@@ -40,3 +40,4 @@ class YoutubeScriptSchema(BaseModel):
     topic: str
     custom_instructions: Optional[str] = None
     created_at: datetime
+    

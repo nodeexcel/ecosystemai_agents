@@ -1,5 +1,5 @@
 import os, datetime, uuid
-from sqlalchemy import Column, Boolean, Integer, String, ARRAY, DateTime, ForeignKey, Date, BigInteger
+from sqlalchemy import Column, Boolean, Integer, String, ARRAY, DateTime, ForeignKey, Date, BigInteger, Text, Time
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableList
 
@@ -73,6 +73,23 @@ class YoutubeScript(Base):
     prompt = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False)
     user = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    
+class ScheduledContent(Base):
+    
+    __tablename__ = "scheduled_content"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    text = Column(Text, nullable=False)
+    document = Column(String, nullable=True)
+    platform = Column(String, nullable=False)
+    media_type = Column(String, nullable=False)
+    platform_unique_id = Column(String, nullable=False)
+    scheduled_type = Column(String, nullable=False)
+    scheduled_date = Column(Date, nullable=True)
+    scheduled_time = Column(Time, nullable=True)
+    media_id = Column(String, nullable=True)
+    published_time = Column(DateTime, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     
     
     

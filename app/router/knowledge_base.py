@@ -1,4 +1,4 @@
-import os, io
+import os
 from fastapi import Depends, UploadFile, Form, File
 from fastapi.routing import APIRouter
 from fastapi.responses import JSONResponse 
@@ -54,9 +54,13 @@ def embeddings_for_snippets(data: str = Form(...),
         
         extra_args = get_upload_args(file.filename)
         
-        aws_client.upload_fileobj(Fileobj=file.file, 
+        try:
+            aws_client.upload_fileobj(Fileobj=file.file, 
                        Bucket=os.getenv('BUCKET_NAME'), Key=file_path,
                        ExtraArgs=extra_args)
+        except Exception as e:
+            print(e)
+            return JSONResponse(content={"error": "could not upload document"}, status_code=500)
 
         knowledge_base = KnowledgeBase(data_type='files', data=data, path=file_path, user_id=user_id)
         db.add(knowledge_base)
