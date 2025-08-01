@@ -28,7 +28,12 @@ celery_application.conf.update(
             'task': 'app.schedulars.email_generation.send_emails',
             'schedule': 10.00,
             'options': {'queue': 'app2_queue'}
-        }
+        },
+        "content-post": {
+            'task': 'app.schedulars.content_posting_schedular.content_post',
+            'schedule': 10.00,
+            'options': {'queue': 'app2_queue'}
+        },
     }
 )
 

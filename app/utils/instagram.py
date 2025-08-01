@@ -1,4 +1,4 @@
-import os, requests
+import os, requests, time
 from fastapi import HTTPException
 from app.services.openai_service import openai_client
 
@@ -20,9 +20,7 @@ def user_authorization(code):
     return token_response, status
 
 def long_lived_access_token(short_lived_access_token):
-    
-    print(short_lived_access_token)
-        
+            
     access_token_params = {
         "grant_type": "ig_exchange_token",
         "client_secret": os.getenv("INSTAGRAM_CLIENT_SECRET"),
@@ -102,9 +100,10 @@ def publish_content_instagram(access_token, refresh_token, instagram_user_id, me
     if media_type == "video":
         payload = {
             "caption": caption,
+            "media_type": "REELS",
             "video_url": media_url
         }
-
+    
     response = requests.post(url, headers=headers, data=payload)
     
     if response.status_code != 200:

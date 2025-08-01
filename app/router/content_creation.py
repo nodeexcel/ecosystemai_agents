@@ -544,6 +544,7 @@ def schedule_content(text: str = Form(...),
     
     try:
         file_path = ""
+        media_url = ""
         
         if document:
             upload_args = get_upload_args(document.filename)
@@ -553,6 +554,8 @@ def schedule_content(text: str = Form(...),
             aws_client.upload_fileobj(Fileobj=document.file, 
                         Bucket=os.getenv('BUCKET_NAME'), Key=file_path,
                         ExtraArgs=upload_args)
+            
+            media_url = os.getenv("S3_BASE_URL") + f"/{file_path}"
     except Exception as e:
             print(e)
             return JSONResponse(content={"error": "could not upload document"}, status_code=500)
@@ -564,8 +567,6 @@ def schedule_content(text: str = Form(...),
         if not instagram:
             return JSONResponse(content={'error': 'instagram account not connected'}, status_code=400)
         
-        media_url = os.getenv("S3_BASE_URL") + f"/{file_path}"
-        
         media_id = publish_content_instagram(instagram.access_token, instagram.refresh_token, platform_unique_id, media_type, media_url, text)
     
     if platform == "linkedin":
@@ -575,7 +576,10 @@ def schedule_content(text: str = Form(...),
         if not linkedin:
             return JSONResponse(content={'error': 'linkedin account not connected'}, status_code=400)
         
-        response, status_code = publish_content_linkedin(linkedin.access_token, linkedin.linkedin_id, text)
+        if media_url:
+            response, status_code = publish_content_linkedin(linkedin.access_token, linkedin.linkedin_id, text, media_type, media_url)
+        else:
+            response, status_code = publish_content_linkedin(linkedin.access_token, linkedin.linkedin_id, text, media_type)
         
         if status_code != 201:
             return JSONResponse(content={"error": "could not publish"}, status_code=400)
@@ -627,7 +631,7 @@ def schedule_content(text: str = Form(...),
         linkedin = db.query(LinkedIn).filter_by(linkedin_id=platform_unique_id).first()
         
         if not linkedin:
-            return JSONResponse(content={'error': 'instagram account not connected'}, status_code=400)
+            return JSONResponse(content={'error': 'linkedin account not connected'}, status_code=400)
     
     try:
         file_path = ""
@@ -649,6 +653,28 @@ def schedule_content(text: str = Form(...),
     
     return JSONResponse(content={'success': "Content is scheduled"}, status_code=201)
     
+@router.get("/get-schduled-content")
+def get_scheduled_content(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    scheduled_contents = db.query(ScheduledContent).filter_by(user_id=user_id).all()
+    
+    response = []
+    
+    for content in scheduled_contents:
+        content_detail = {}
+        content_detail['schduled_content_id'] = content.id
+        content_detail['platform'] = content.platform
+        content_detail['platform_unique_id'] = content.platform_unique_id
+        content_detail['scheduled_type'] = content.scheduled_type
+        content_detail['scheduled_date'] = str(content.scheduled_date)
+        content_detail['scheduled_time'] = str(content.scheduled_time)
+        content_detail['published_time'] = str(content.published_time)
+        response.append(content_detail)
+    return JSONResponse(content={"content_details": response}, status_code=200)        
     
     
     
