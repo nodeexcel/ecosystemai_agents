@@ -48,6 +48,7 @@ class User(Base):
     refreshToken = Column(String(255), nullable=True)
     isDeleted = Column(Boolean, default=False)
     otp = Column(String(6), nullable=True)
+    subscriptionDurationType = Column(String, nullable=True)
     subscriptionEndDate = Column(DateTime, nullable=True)
     subscriptionStartDate = Column(DateTime, nullable=True)
     subscriptionUpdatedAt = Column(DateTime, nullable=True)
@@ -60,6 +61,9 @@ class Team(Base):
     id = Column(String, primary_key=True)
     userId = Column(Integer, ForeignKey('users.id'))
     numberOfTeamMembers = Column(Integer, default=1)
+    creditRenewDate = Column(Date, nullable=True)
+    numberOfRenewMonths = Column(Integer, nullable=True)
+    nextMonthRenewDate = Column(Date, nullable=True)
     credits = Column(Integer, default=0)
     
     

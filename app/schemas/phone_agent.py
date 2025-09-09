@@ -3,10 +3,10 @@ from typing import Literal, Optional
 
 class AddPhoneNumber(BaseModel):
     name: str
-    phone_number: str
+    phone_number: str = Field(max_length=10)
     country: str
     number_type: str
-    status: bool = True
+    status: bool = False
 
 class CreatePhoneAgent(BaseModel):
     agent_name: str
@@ -20,7 +20,7 @@ class AddCampaigns(BaseModel):
     voice: str
     choose_calendar: Optional[str] = None
     max_call_time: int = Field(le=60)
-    target_lists: list[str]
+    target_lists: int
     agent: int
     country: str
     phone_number: str

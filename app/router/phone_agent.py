@@ -1,20 +1,31 @@
-import uuid, datetime
-from fastapi import Depends, HTTPException
+import base64, datetime, json, os, uuid, asyncio
+import websockets
+from fastapi import Depends, HTTPException, WebSocket, Form
+from fastapi.websockets import WebSocketDisconnect
 from fastapi.routing import APIRouter
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, HTMLResponse
 
 from sqlalchemy.orm import Session
 
+from twilio.twiml.voice_response import VoiceResponse, Connect
+
 from app.models.model import User
-from app.models.phone_agent import PhoneAgent, PhoneCampaign, AgentPhoneNumbers
+from app.models.phone_agent import PhoneAgent, PhoneCampaign, AgentPhoneNumbers, CallRecord
 from app.models.get_db import get_db 
 from app.schemas.phone_agent import (AddPhoneNumber, CreatePhoneAgent,
                                      AddCampaigns, AgentFilterParams, UpdateCampaign)
 from app.utils.user_auth import get_current_user
-from twilio.twiml.voice_response import VoiceResponse
 from app.services.babel import get_translator_dependency
+from app.services.twilio_rest import twilio_client, buy_number
+from app.utils.phone_agent import initialize_session
 
 router = APIRouter(tags=["phone-agents"])
+
+LOG_EVENT_TYPES = [
+    'error', 'response.content.done', 'rate_limits.updated', 'response.done',
+    'input_audio_buffer.committed', 'input_audio_buffer.speech_stopped',
+    'input_audio_buffer.speech_started', 'session.created'
+]
 
 @router.post("/add-phone-number")
 def add_phone_number(payload: AddPhoneNumber, db: Session = Depends(get_db),
@@ -25,11 +36,22 @@ def add_phone_number(payload: AddPhoneNumber, db: Session = Depends(get_db),
     if not user:
         return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
-    phone_number = db.query(AgentPhoneNumbers).filter_by(phone_number=payload.phone_number, user_id=user_id).first()
+    allowed_countries = {'United States': '+1', 'France': '+33', 'United Kingdom': '+44'}
+    
+    if payload.country not in allowed_countries:
+         return JSONResponse(content={'error': ("country code provided does not exist")}, status_code=409)
+     
+    country_code = allowed_countries[payload.country]
+    
+    payload.phone_number = country_code + payload.phone_number
+    
+    phone_number = db.query(AgentPhoneNumbers).filter_by(phone_number=payload.phone_number).first()
     if phone_number:
         return JSONResponse(content={'error': _("phone number is already added")}, status_code=409)
+    
+    twilio_number = buy_number() 
         
-    add_phone_number = AgentPhoneNumbers(**payload.model_dump(), user_id=user_id)
+    add_phone_number = AgentPhoneNumbers(**payload.model_dump(), twilio_number=twilio_number, user_id=user_id)
     db.add(add_phone_number)
     db.commit()
     db.refresh(add_phone_number)
@@ -44,9 +66,13 @@ def create_phone_agent(payload: CreatePhoneAgent, db: Session = Depends(get_db),
     if not user:
         return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
-    phone_number = db.query(AgentPhoneNumbers).filter_by(phone_number=payload.phone_number, user_id=user_id).first()
+    phone_number = db.query(AgentPhoneNumbers).filter_by(phone_number=payload.phone_number).first()
     if not phone_number:
         return JSONResponse(content={'error': _("phone number does not exists")}, status_code=404)
+    print(payload.phone_number)
+    phone_number = db.query(PhoneAgent).filter_by(phone_number=payload.phone_number).first()
+    if phone_number:
+        return JSONResponse(content={'error': ("phone number already associated with a agent")}, status_code=404)
         
     add_agent = PhoneAgent(**payload.model_dump(), user_id=user_id)
     db.add(add_agent)
@@ -63,13 +89,17 @@ def create_phone_campaign(payload: AddCampaigns, db: Session = Depends(get_db),
     if not user:
         return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
-    phone_number = db.query(AgentPhoneNumbers).filter_by(phone_number=payload.phone_number, user_id=user_id).first()
+    phone_number = db.query(AgentPhoneNumbers).filter_by(phone_number=payload.phone_number).first()
     if not phone_number:
         return JSONResponse(content={'error': _("phone number does not exists")}, status_code=404)
     
-    phone_number = db.query(PhoneAgent).filter_by(id=payload.agent, user_id=user_id).first()
-    if not phone_number:
+    phone_agent = db.query(PhoneAgent).filter_by(id=payload.agent).first()
+    if not phone_agent:
         return JSONResponse(content={'error': _("agent does not exists")}, status_code=404)
+    
+    phone_agent = db.query(PhoneCampaign).filter_by(agent=payload.agent).first()
+    if phone_agent:
+        return JSONResponse(content={'error': _("agent already connected to another campaign")}, status_code=404)
         
     add_campaign = PhoneCampaign(**payload.model_dump(), user_id=user_id)
     db.add(add_campaign)
@@ -309,6 +339,169 @@ def duplicate_a_campaign(campaign_id, db: Session = Depends(get_db), user_id: st
     return JSONResponse(content={'error': _('Campaign does not exist')}, status_code=404) 
 
 
+@router.get('/make-call')
+def make_call(call_record: dict, db: Session = Depends(get_db)):
     
+    DOMAIN = os.getenv('DOMAIN')
+    
+    url = f"https://{DOMAIN}/outgoing-call"
 
+    call = twilio_client.calls.create(
+        from_=call_record['from_contact_number'],
+        to=call_record['contact_number'],
+        url=url
+    )
+    
+    call_record['call_sid'] = call.sid
+    
+    call_record_instance = CallRecord(**call_record)
+    db.add(call_record_instance)
+    db.commit()
+    
+    return JSONResponse(content={"call_id": call.sid}, status_code=201)
 
+@router.post('/outgoing-call')
+def answer(From: str = Form(...),
+    To: str = Form(...),
+    db: Session = Depends(get_db)):
+    response = VoiceResponse()
+    
+    twilio_phone_number = db.query(AgentPhoneNumbers).filter_by(twilio_number=From).first()
+    number = twilio_phone_number.phone_number
+    user_id = twilio_phone_number.user_id
+    campaign = db.query(PhoneCampaign).filter_by(phone_number=number).first()
+    
+    
+    response.say("Connecting to a AI agent. Wait for 10 seconds")
+    
+    script = campaign.call_script
+    phrase = campaign.catch_phrase
+    
+    voice="alloy"
+    
+    response.pause(length=1)
+    connect = Connect()
+    DOMAIN = os.getenv('DOMAIN')
+    connect.stream(url=f'wss://{DOMAIN}/media-stream?prompt={prompt}&voice={voice}')
+    response.append(connect)
+    return HTMLResponse(content=str(response), media_type="application/xml")
+
+@router.websocket('/media-stream')
+async def handle_media_stream(websocket: WebSocket):
+    print("Client connected")
+    await websocket.accept()
+
+    openai_key = os.getenv("OPENAI_API_KEY")
+    async with websockets.connect(
+        'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01',
+        additional_headers={
+            "Authorization": f"Bearer {openai_key}",
+            "OpenAI-Beta": "realtime=v1"
+        }
+    ) as openai_ws:
+        await initialize_session(openai_ws)
+        stream_sid = None
+
+        async def receive_from_twilio():
+            """Receive audio data from Twilio and send it to the OpenAI Realtime API."""
+            nonlocal stream_sid
+            try:
+                async for message in websocket.iter_text():
+                    data = json.loads(message)
+                    if data['event'] == 'media' and openai_ws:
+                        audio_append = {
+                            "type": "input_audio_buffer.append",
+                            "audio": data['media']['payload']
+                        }
+                        await openai_ws.send(json.dumps(audio_append))
+                    elif data['event'] == 'start':
+                        stream_sid = data['start']['streamSid']
+                        print(f"Incoming stream has started {stream_sid}")
+            except WebSocketDisconnect:
+                print("Client disconnected.")
+                if openai_ws:
+                    await openai_ws.close()
+
+        async def send_to_twilio():
+            """Receive events from the OpenAI Realtime API, send audio back to Twilio."""
+            nonlocal stream_sid
+            try:
+                async for openai_message in openai_ws:
+                    response = json.loads(openai_message)
+                    event_type = response.get("type")
+                    
+                    if event_type != 'response.audio.delta' and event_type != 'response.audio_transcript.delta':
+                        print(response)
+
+                    if event_type == "conversation.item.input_audio_transcription.completed":
+                        user_text = response.get("transcript", "")
+                        print("Transcript final (user):", user_text)
+                    
+                        payload = {"knowledge_base": "maruti produce 750,000 cars in a day",
+                                        "text": user_text}
+                        payload = json.dumps(payload)
+                        
+                        conversation_item = {
+                            "type": "conversation.item.create",
+                            "item": {
+                                "type": "message",
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "input_text",
+                                        "text": payload
+                                    }
+                                ]
+                            }
+                        }
+                        await openai_ws.send(json.dumps(conversation_item))
+                        await openai_ws.send(json.dumps({"type": "response.create", "response": {"modalities": ["text", "audio"]}}))
+                        
+                        # async for openai_message in openai_ws:
+                        #     response = json.loads(openai_message)
+                        #     print(openai_message)
+                        #     event_type = response.get("type")
+                    
+                    # if event_type == "response.done":
+                    #     outputs = response['response']['output']
+                    #     for output in outputs:
+                    #         if output.get('name') == "generate_horoscope":
+                    #             {
+                    #             "type": "conversation.item.create",
+                    #             "item": {
+                    #                 "type": "function_call_output",
+                    #                 "call_id": output.get('call_id'),
+                    #                 "output": "{\"output\": \"20\"}"
+                    #             }
+                    #             }
+                    #             await openai_ws.send(json.dumps(conversation_item))
+                                
+                    
+                    if event_type == "response.audio.delta" and response.get("delta"):
+                        try:
+                            audio_payload = base64.b64encode(
+                                base64.b64decode(response["delta"])
+                            ).decode("utf-8")
+
+                            audio_delta = {
+                                "event": "media",
+                                "streamSid": stream_sid,
+                                "media": {"payload": audio_payload}
+                            }
+                            await websocket.send_json(audio_delta)
+                        except Exception as e:
+                            print(f"Error processing audio data: {e}")
+                            
+            except Exception as e:
+                print(f"Error in send_to_twilio: {e}")
+        await asyncio.gather(receive_from_twilio(), send_to_twilio())
+        
+@router.post("call-status")
+def call_status(from_number: str = Form(...),
+    to_number: str = Form(...),
+   call_sid: str = Form(...),
+   call_status: str = Form(...)):
+    
+    print(from_number, to_number, call_sid, call_status)
+    
+    return 

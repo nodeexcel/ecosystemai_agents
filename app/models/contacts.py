@@ -29,6 +29,7 @@ class Lists(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     listName = Column(String, nullable=True)
+    description = Column(String, nullable=True)
     channel = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.now())
     team_id = Column(String, ForeignKey("team.id", ondelete="CASCADE"))

@@ -10,6 +10,7 @@ class AgentPhoneNumbers(Base):
     name = Column(String, nullable=False)
     country =  Column(String, nullable=False)
     phone_number = Column(String, nullable=False, unique=True)
+    twilio_number = Column(String, nullable=False, unique=True)
     status = Column(Boolean, default=True)
     number_type = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.now())
@@ -35,7 +36,7 @@ class PhoneCampaign(Base):
     voice = Column(String, nullable=False)
     choose_calendar = Column(String, nullable=True)
     max_call_time = Column(Integer, nullable=True)
-    target_lists = Column(ARRAY(String), default=[])
+    target_lists = Column(Integer, nullable=False)
     country = Column(String, nullable=False)
     phone_number = Column(String, nullable=False)
     status = Column(String, default="pending")
@@ -45,5 +46,17 @@ class PhoneCampaign(Base):
     created_at = Column(DateTime, default=datetime.datetime.now())
     agent = Column(Integer, ForeignKey("phone_agent.id", ondelete="CASCADE"))
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+
+class CallRecord(Base):
+    __tablename__ = "call_record"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    from_contact_number = Column(String, nullable=False) 
+    contact_number = Column(String, nullable=False)
+    result = Column(String, nullable=True)
+    call_sid = Column(String, nullable=True)
+    created_at = Column(String, default=datetime.datetime.now())
+    
+    
     
     
