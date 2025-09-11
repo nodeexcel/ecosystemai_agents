@@ -32,6 +32,7 @@ class PhoneCampaign(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     campaign_name = Column(String, nullable=False)
+    campaign_type = Column(String, nullable=True)
     language = Column(String, nullable=False)
     voice = Column(String, nullable=False)
     choose_calendar = Column(String, nullable=True)
@@ -55,6 +56,12 @@ class CallRecord(Base):
     contact_number = Column(String, nullable=False)
     result = Column(String, nullable=True)
     call_sid = Column(String, nullable=True)
+    call_type = Column(String, nullable=True)
+    campaign_name = Column(String, nullable=True)
+    agent_name = Column(String, nullable=True)
+    language = Column(String, nullable=True)
+    voice = Column(String, nullable=True)
+    user_id = Column(Integer, nullable=True)
     created_at = Column(String, default=datetime.datetime.now())
     
     

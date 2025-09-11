@@ -5,19 +5,23 @@ from fastapi.websockets import WebSocketDisconnect
 from fastapi.routing import APIRouter
 from fastapi.responses import JSONResponse, HTMLResponse
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+from app.models.get_db import get_async_db
 
 from twilio.twiml.voice_response import VoiceResponse, Connect
 
 from app.models.model import User
 from app.models.phone_agent import PhoneAgent, PhoneCampaign, AgentPhoneNumbers, CallRecord
-from app.models.get_db import get_db 
+from app.models.get_db import get_db, SessionLocal
+from app.prompts.phone_agent import phone_agent_prompt
 from app.schemas.phone_agent import (AddPhoneNumber, CreatePhoneAgent,
                                      AddCampaigns, AgentFilterParams, UpdateCampaign)
 from app.utils.user_auth import get_current_user
 from app.services.babel import get_translator_dependency
 from app.services.twilio_rest import twilio_client, buy_number
 from app.utils.phone_agent import initialize_session
+from app.utils.knowledge_base import fetch_text
 
 router = APIRouter(tags=["phone-agents"])
 
@@ -340,23 +344,32 @@ def duplicate_a_campaign(campaign_id, db: Session = Depends(get_db), user_id: st
 
 
 @router.get('/make-call')
-def make_call(call_record: dict, db: Session = Depends(get_db)):
+def make_call(call_record: dict):
     
-    DOMAIN = os.getenv('DOMAIN')
-    
-    url = f"https://{DOMAIN}/outgoing-call"
+    try:
+        
+        db = SessionLocal()
+        
+        DOMAIN = os.getenv('DOMAIN')
+        
+        url = f"https://{DOMAIN}/outgoing-call"
 
-    call = twilio_client.calls.create(
-        from_=call_record['from_contact_number'],
-        to=call_record['contact_number'],
-        url=url
-    )
-    
-    call_record['call_sid'] = call.sid
-    
-    call_record_instance = CallRecord(**call_record)
-    db.add(call_record_instance)
-    db.commit()
+        call = twilio_client.calls.create(
+            from_=call_record['from_contact_number'],
+            to=call_record['contact_number'],
+            url=url,
+            time_limit=600
+        )
+        
+        call_record['call_sid'] = call.sid
+        call_record['call_type'] = "outgoing"
+        
+        call_record_instance = CallRecord(**call_record)
+        db.add(call_record_instance)
+        db.commit()
+        
+    finally:
+        db.close()
     
     return JSONResponse(content={"call_id": call.sid}, status_code=201)
 
@@ -366,30 +379,84 @@ def answer(From: str = Form(...),
     db: Session = Depends(get_db)):
     response = VoiceResponse()
     
+    To = "+91 " + To[3:]
+    
     twilio_phone_number = db.query(AgentPhoneNumbers).filter_by(twilio_number=From).first()
     number = twilio_phone_number.phone_number
     user_id = twilio_phone_number.user_id
+    
+    agent = db.query(PhoneAgent).filter_by(phone_number=number).first()
     campaign = db.query(PhoneCampaign).filter_by(phone_number=number).first()
     
+    call_record = db.query(CallRecord).filter_by(from_contact_number=twilio_phone_number.twilio_number, contact_number=To).first()
+    call_record.campaign_name = agent.agent_name
+    call_record.agent_name = campaign.campaign_name
+    call_record.language = campaign.language
+    call_record.voice = campaign.voice
+    db.commit()
     
     response.say("Connecting to a AI agent. Wait for 10 seconds")
-    
-    script = campaign.call_script
-    phrase = campaign.catch_phrase
-    
-    voice="alloy"
     
     response.pause(length=1)
     connect = Connect()
     DOMAIN = os.getenv('DOMAIN')
-    connect.stream(url=f'wss://{DOMAIN}/media-stream?prompt={prompt}&voice={voice}')
+    
+    connect.stream(url=f'wss://{DOMAIN}/media-stream/{user_id}/{campaign.id}/{agent.id}')
     response.append(connect)
     return HTMLResponse(content=str(response), media_type="application/xml")
 
-@router.websocket('/media-stream')
-async def handle_media_stream(websocket: WebSocket):
-    print("Client connected")
+@router.post('/incoming-call')
+def incoming_call(From: str = Form(...),
+    To: str = Form(...),
+    db: Session = Depends(get_db)):
+    response = VoiceResponse()
+    
+    twilio_phone_number = db.query(AgentPhoneNumbers).filter_by(twilio_number=To).first()
+    number = twilio_phone_number.phone_number
+    user_id = twilio_phone_number.user_id
+    
+    if twilio_phone_number.number_type != "inbound":
+        return
+    
+    agent = db.query(PhoneAgent).filter_by(phone_number=number).first()
+    campaign = db.query(PhoneCampaign).filter_by(phone_number=number).first()
+
+    call_record = {"from_contact_number": From,
+                    "contact_number": To}
+
+    call_record['call_type'] = 'incoming'
+    call_record['user_id'] = user_id
+    call_record['campaign_name'] = campaign.campaign_name
+    call_record['agent_name'] = agent.agent_name
+    call_record['langauage'] = campaign.language
+    call_record['voice'] = campaign.voice
+    
+    call_record_instance = CallRecord(**call_record)
+    db.add(call_record_instance)
+    db.commit()
+    
+    response.say("Connecting to a AI agent. Wait for 10 seconds")
+    
+    response.pause(length=1)
+    connect = Connect()
+    DOMAIN = os.getenv('DOMAIN')
+    
+    connect.stream(url=f'wss://{DOMAIN}/media-stream/{user_id}/{campaign.id}/{agent.id}')
+    response.append(connect)
+    return HTMLResponse(content=str(response), media_type="application/xml")
+
+@router.websocket('/media-stream/{user_id}/{campaign_id}/{agent_id}')
+async def handle_media_stream(websocket: WebSocket, user_id, campaign_id, agent_id):
+    
     await websocket.accept()
+    
+    async with get_async_db() as db:
+        result = await db.execute(select(PhoneCampaign).where(PhoneCampaign.id == int(campaign_id)))
+        campaign = result.scalars().first()
+        result = await db.execute(select(PhoneAgent).where(PhoneAgent.id == int(agent_id)))
+        agent = result.scalars().first()
+        prompt = phone_agent_prompt(agent, campaign)
+        voice="alloy"
 
     openai_key = os.getenv("OPENAI_API_KEY")
     async with websockets.connect(
@@ -399,7 +466,7 @@ async def handle_media_stream(websocket: WebSocket):
             "OpenAI-Beta": "realtime=v1"
         }
     ) as openai_ws:
-        await initialize_session(openai_ws)
+        await initialize_session(openai_ws, prompt, voice)
         stream_sid = None
 
         async def receive_from_twilio():
@@ -430,15 +497,16 @@ async def handle_media_stream(websocket: WebSocket):
                     response = json.loads(openai_message)
                     event_type = response.get("type")
                     
-                    if event_type != 'response.audio.delta' and event_type != 'response.audio_transcript.delta':
-                        print(response)
 
                     if event_type == "conversation.item.input_audio_transcription.completed":
                         user_text = response.get("transcript", "")
                         print("Transcript final (user):", user_text)
+                        
+                        knowledge_base = fetch_text(user_text, user_id)
                     
-                        payload = {"knowledge_base": "maruti produce 750,000 cars in a day",
+                        payload = {"knowledge_base": knowledge_base,
                                         "text": user_text}
+                        
                         payload = json.dumps(payload)
                         
                         conversation_item = {
@@ -496,7 +564,7 @@ async def handle_media_stream(websocket: WebSocket):
                 print(f"Error in send_to_twilio: {e}")
         await asyncio.gather(receive_from_twilio(), send_to_twilio())
         
-@router.post("call-status")
+@router.post("/call-status")
 def call_status(from_number: str = Form(...),
     to_number: str = Form(...),
    call_sid: str = Form(...),
@@ -505,3 +573,81 @@ def call_status(from_number: str = Form(...),
     print(from_number, to_number, call_sid, call_status)
     
     return 
+
+@router.get("/get-phone-agent-details")
+def get_phone_agent_details(db: Session = Depends(get_db),
+                         user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404) 
+    
+    agents = db.query(PhoneAgent).filter_by(user_id=user_id).count()
+    
+    campaigns = db.query(PhoneCampaign).filter_by(user_id=user_id).count()
+    
+    outbound_calls = db.query(CallRecord).filter_by(call_type='outbound', user_id=user_id).count()
+    
+    inbound_calls = db.query(CallRecord).filter_by(call_type='inbound', user_id=user_id).count()
+    
+    return JSONResponse(content={'success': {"agents": agents,
+                                             "campaigns": campaigns,
+                                             "outbound_calls": outbound_calls,
+                                             "inbound_calls": inbound_calls}}, status_code=200)
+
+@router.get("/outbound-call-details")
+def outbound_call_details(db: Session = Depends(get_db),
+                         user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404) 
+    
+    records = db.query(CallRecord).filter_by(call_type='outgoing', user_id=user_id).all()
+    
+    response = []
+    
+    for record in records:
+        record_info = {}
+        
+        record_info['campaign_name'] = record.campaign_name
+        record_info['agent_name'] = record.agent_name
+        record_info['langauage'] = record.language
+        record_info['voice'] = record.voice
+        record_info['date'] = record.created_at
+        record_info['status'] = "replied"
+        record_info['recipient_no'] = record.call_sid
+        record_info['duration'] = 600 
+        response.append(record)
+        
+    
+    return JSONResponse(content={'success': response}, status_code=200)
+
+@router.get("/inbound-call-details")
+def inbound_call_details(db: Session = Depends(get_db),
+                         user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
+    
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': _("user does not exist")}, status_code=404) 
+    
+    records = db.query(CallRecord).filter_by(call_type='inbound', user_id=user_id).all()
+    
+    response = []
+    
+    for record in records:
+        record_info = {}
+        
+        record_info['campaign_name'] = record.campaign_name
+        record_info['agent_name'] = record.agent_name
+        record_info['langauage'] = record.language
+        record_info['voice'] = record.voice
+        record_info['date'] = record.created_at
+        record_info['status'] = "replied"
+        record_info['recipient_no'] = record.call_sid
+        record_info['duration'] = 600 
+        response.append(record)
+        
+    
+    return JSONResponse(content={'success': response}, status_code=200)
+    

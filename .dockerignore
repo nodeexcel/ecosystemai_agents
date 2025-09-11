@@ -3,4 +3,6 @@ env/
 nohup.out
 message.postgresql
 uploads/
+phone.py
+test.py
 __py_cache__

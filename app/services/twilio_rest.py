@@ -13,8 +13,7 @@ def buy_number():
     for available_number in available_numbers:
         number = available_number.phone_number
         purchased_number = twilio_client.incoming_phone_numbers.create(phone_number=number,
-                                                                       status_callback=f"https://{domain}/call-status",
-              status_callback_event=["initiated", "ringing", "answered", "completed"])
+                                                                       status_callback=f"https://{domain}/call-status")
     return purchased_number.phone_number
 
 

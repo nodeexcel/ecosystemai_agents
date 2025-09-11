@@ -1,6 +1,6 @@
 import json
 
-async def send_initial_conversation_item(openai_ws):
+async def send_initial_conversation_item(openai_ws, prompt):
     """Send initial conversation so AI talks first."""
     initial_conversation_item = {
         "type": "conversation.item.create",
@@ -11,14 +11,14 @@ async def send_initial_conversation_item(openai_ws):
                 {
                     "type": "input_text",
                     "text": (
-                        "you name is jessy. A humurous agent.'"
+                        prompt
                     )
                 }
             ]
         }
     }
-    openai_ws.send(json.dumps(initial_conversation_item))
-    openai_ws.send(json.dumps({"type": "response.create", "response": {"modalities": ["text", "audio"]}}))
+    await openai_ws.send(json.dumps(initial_conversation_item))
+    await openai_ws.send(json.dumps({"type": "response.create", "response": {"modalities": ["text", "audio"]}}))
 
 tools = [
       {
@@ -42,7 +42,7 @@ tools = [
       }
     ]
 
-async def initialize_session(openai_ws):
+async def initialize_session(openai_ws, prompt, voice):
     """Control initial session with OpenAI."""
     session_update = {
         "type": "session.update",
@@ -53,7 +53,7 @@ async def initialize_session(openai_ws):
             "input_audio_format": "g711_ulaw",
             "output_audio_format": "g711_ulaw",
             "voice": "alloy",
-            "instructions": "You are helpful assistant",
+            "instructions": prompt,
             "modalities": ["text"],
             "temperature": 0.8,
             "tools": tools,
@@ -66,4 +66,4 @@ async def initialize_session(openai_ws):
     print('Sending session update:', json.dumps(session_update))
     await openai_ws.send(json.dumps(session_update))
 
-    await send_initial_conversation_item(openai_ws)
+    await send_initial_conversation_item(openai_ws, prompt)

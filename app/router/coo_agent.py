@@ -29,14 +29,11 @@ async def coo_agent_chat(id: int, websocket: WebSocket):
     async with get_async_db() as db:
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalars().first()
-        print(user)
         if not user:
             await websocket.send_json({"error": "User does not exist"})
             await websocket.close()
             return
-        print(user.language)
         language = user.language
-        print(language)
 
     while True:
         try:
@@ -131,11 +128,6 @@ def get_coo_chats(db: Session = Depends(get_db), user_id: str = Depends(get_curr
                   , _ = Depends(get_translator_dependency)):
     
     user = db.query(User).filter_by(id=user_id).first()
-    print(user.id)
-    print(user.language)
-    print(user.email)
-    import os
-    print(os.getenv("SQLALCHEMY_DATABASE_URL"))
     if not user:
         return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     

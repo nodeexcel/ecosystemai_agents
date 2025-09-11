@@ -16,6 +16,7 @@ class CreatePhoneAgent(BaseModel):
     
 class AddCampaigns(BaseModel):
     campaign_name: str
+    campaign_type: str
     language: str
     voice: str
     choose_calendar: Optional[str] = None
