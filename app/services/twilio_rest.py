@@ -7,7 +7,7 @@ load_dotenv()
 
 twilio_client = Client(os.getenv('TWILIO_ACCOUNT_SID'), os.getenv('TWILIO_AUTH_TOKEN'))
 
-def buy_number():
+def outgoing_buy_number():
     domain = os.getenv('DOMAIN')
     available_numbers = twilio_client.available_phone_numbers("US").local.list(limit=1)
     for available_number in available_numbers:
@@ -15,6 +15,17 @@ def buy_number():
         purchased_number = twilio_client.incoming_phone_numbers.create(phone_number=number,
                                                                        status_callback=f"https://{domain}/call-status")
     return purchased_number.phone_number
+
+def incoming_buy_number():
+    domain = os.getenv('DOMAIN')
+    available_numbers = twilio_client.available_phone_numbers("US").local.list(limit=1)
+    for available_number in available_numbers:
+        number = available_number.phone_number
+        purchased_number = twilio_client.incoming_phone_numbers.create(phone_number=number,
+                                                                       voice_url=f"https://{domain}/incoming",
+                                                                       status_callback=f"https://{domain}/call-status")
+    return purchased_number.phone_number
+
 
 
     

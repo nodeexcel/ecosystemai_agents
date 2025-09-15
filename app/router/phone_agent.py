@@ -19,7 +19,7 @@ from app.schemas.phone_agent import (AddPhoneNumber, CreatePhoneAgent,
                                      AddCampaigns, AgentFilterParams, UpdateCampaign)
 from app.utils.user_auth import get_current_user
 from app.services.babel import get_translator_dependency
-from app.services.twilio_rest import twilio_client, buy_number
+from app.services.twilio_rest import twilio_client, outgoing_buy_number, incoming_buy_number
 from app.utils.phone_agent import initialize_session
 from app.utils.knowledge_base import fetch_text
 
@@ -53,7 +53,13 @@ def add_phone_number(payload: AddPhoneNumber, db: Session = Depends(get_db),
     if phone_number:
         return JSONResponse(content={'error': _("phone number is already added")}, status_code=409)
     
-    twilio_number = buy_number() 
+    if payload.number_type == "outbound":
+    
+        twilio_number = outgoing_buy_number() 
+    
+    if payload.number_type == "inbound":
+    
+        twilio_number = incoming_buy_number() 
         
     add_phone_number = AgentPhoneNumbers(**payload.model_dump(), twilio_number=twilio_number, user_id=user_id)
     db.add(add_phone_number)
@@ -358,7 +364,7 @@ def make_call(call_record: dict):
             from_=call_record['from_contact_number'],
             to=call_record['contact_number'],
             url=url,
-            time_limit=600
+            time_limit=600,
         )
         
         call_record['call_sid'] = call.sid
@@ -614,11 +620,11 @@ def outbound_call_details(db: Session = Depends(get_db),
         record_info['agent_name'] = record.agent_name
         record_info['langauage'] = record.language
         record_info['voice'] = record.voice
-        record_info['date'] = record.created_at
+        record_info['date'] = str(record.created_at)
         record_info['status'] = "replied"
         record_info['recipient_no'] = record.call_sid
         record_info['duration'] = 600 
-        response.append(record)
+        response.append(record_info)
         
     
     return JSONResponse(content={'success': response}, status_code=200)
@@ -642,11 +648,11 @@ def inbound_call_details(db: Session = Depends(get_db),
         record_info['agent_name'] = record.agent_name
         record_info['langauage'] = record.language
         record_info['voice'] = record.voice
-        record_info['date'] = record.created_at
+        record_info['date'] = str(record.created_at)
         record_info['status'] = "replied"
         record_info['recipient_no'] = record.call_sid
         record_info['duration'] = 600 
-        response.append(record)
+        response.append(record_info)
         
     
     return JSONResponse(content={'success': response}, status_code=200)

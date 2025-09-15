@@ -127,4 +127,6 @@ class KnowledgeBase(Base):
     data_type = Column(String)
     path = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE")) 
+    created_at = Column(DateTime, default=datetime.datetime.now())
+
     

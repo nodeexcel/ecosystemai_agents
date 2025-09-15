@@ -87,7 +87,7 @@ msgstr ""
 
 #: app/router/appointment_setter.py:55
 msgid "Appointment agent created successfullly."
-msgstr "rtyuiuytredsdfyuioiuytredtyuiuytre"
+msgstr ""
 
 #: app/router/appointment_setter.py:117 app/router/appointment_setter.py:144
 msgid "Agent does not exist"
@@ -101,7 +101,7 @@ msgstr ""
 
 #: app/router/appointment_setter.py:174
 msgid "Agent updated successfully"
-msgstr "bdberbveribfihebvihe"
+msgstr ""
 
 #: app/router/appointment_setter.py:175
 msgid "Not authorized to update this agent"
