@@ -94,11 +94,10 @@ def upsert_to_pinecone_for_pdf(user_id, documents, embeddings):
     
     index = pinecone_db.Index(name=os.getenv('PINECONEDB'))
     user_id = user_id
-    id = uuid.uuid4()
     
     vectors = [
         {
-            "id": str(id),
+            "id": str(uuid.uuid4()),
             "values": embeddings[i],
             "metadata": {"text": documents[i].page_content}
         }
