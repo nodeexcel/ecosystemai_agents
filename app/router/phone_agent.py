@@ -1,4 +1,5 @@
-import base64, datetime, json, os, uuid, asyncio
+import base64, json, os, uuid, asyncio
+from datetime import datetime, timezone
 import websockets
 from fastapi import Depends, HTTPException, WebSocket, Form
 from fastapi.websockets import WebSocketDisconnect
@@ -61,7 +62,8 @@ def add_phone_number(payload: AddPhoneNumber, db: Session = Depends(get_db),
     
         twilio_number = incoming_buy_number() 
         
-    add_phone_number = AgentPhoneNumbers(**payload.model_dump(), twilio_number=twilio_number, user_id=user_id)
+    add_phone_number = AgentPhoneNumbers(**payload.model_dump(), twilio_number=twilio_number,
+                                         created_at = datetime.now(timezone.utc), user_id=user_id)
     db.add(add_phone_number)
     db.commit()
     db.refresh(add_phone_number)

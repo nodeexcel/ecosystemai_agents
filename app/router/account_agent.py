@@ -92,7 +92,9 @@ async def new_accounting_chat(websocket: WebSocket):
         
     while True:
         try:
-            data = await websocket.receive_text()
+            data = await websocket.receive_json()
+            
+            data = data.get("message")
             
             chat_name = await summarizing_initial_chat(data)
             

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.models.get_db import get_async_db, get_db
 from app.models.model import User
 from app.models.hr_agent import HrChatHistory
-from app.prompts.hr_agent import hr_agent_prompt
+from app.prompts.hr_agent import hr_agent_prompt, job_description_writer, interview_planner, linkedin_outreacher
 from app.utils.user_auth import get_user_id_from_websocket, get_current_user
 from app.ai_agents.hr_agent import initialise_agent, message_reply_by_agent
 from app.services.babel import get_translator_dependency
@@ -46,9 +46,20 @@ async def hr_agent_chat(id: int, websocket: WebSocket):
                     await websocket.close()
                     return
                 thread_id = chat.thread_id
+                agent_type = chat.agent_type
+                
+                if not agent_type:
+                    prompt = hr_agent_prompt(language)
+                else:
+                    if agent_type == "job_description_writer":
+                        prompt = job_description_writer(language)
+                    elif agent_type == "interview_planner":
+                        prompt = interview_planner(language)
+                    elif agent_type == "linkedin_outreacher":
+                        prompt = linkedin_outreacher(language)
+                    else:
+                        prompt = hr_agent_prompt(language)
 
-
-                prompt = hr_agent_prompt(language)
                 hr_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(hr_agent, data, thread_id)
 
@@ -93,7 +104,10 @@ async def new_hr_agent_chat(websocket: WebSocket):
         
     while True:
         try:
-            data = await websocket.receive_text()
+            data = await websocket.receive_json()
+            
+            agent_type = data.get("agent_type")
+            data = data.get("message")
             
             chat_name = await summarizing_initial_chat(data)
 
@@ -103,9 +117,20 @@ async def new_hr_agent_chat(websocket: WebSocket):
                 chat_history.append({'user': data, 'message_at': str(datetime.datetime.now(datetime.timezone.utc))})
                 chat.chat_history = chat_history
                 chat.name = chat_name
+                if agent_type:
+                    chat.agent_type = agent_type
                 await db.commit()
-
-                prompt = hr_agent_prompt(language)
+                if agent_type:
+                    if agent_type == "job_description_writer":
+                        prompt = job_description_writer(language)
+                    elif agent_type == "interview_planner":
+                        prompt = interview_planner(language)
+                    elif agent_type == "linkedin_outreacher":
+                        prompt = linkedin_outreacher(language)
+                    else:
+                        prompt = hr_agent_prompt(language)
+                else:
+                    prompt = hr_agent_prompt(language)
                 hr_agent = await initialise_agent(prompt)
                 ai_response = await message_reply_by_agent(hr_agent, data, thread_id)
 

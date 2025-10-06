@@ -6,7 +6,7 @@ class AddPhoneNumber(BaseModel):
     phone_number: str = Field(max_length=10)
     country: str
     number_type: str
-    status: bool = False
+    status: bool = True
 
 class CreatePhoneAgent(BaseModel):
     agent_name: str

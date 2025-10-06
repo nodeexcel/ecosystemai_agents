@@ -6,9 +6,9 @@ from sqlalchemy.ext.mutable import MutableList
 from app.models.model import Base
 
 
-class HrChatHistory(Base):
+class CustomerSupportChatHistory(Base):
     
-    __tablename__ = "hr_chat_history"
+    __tablename__ = "customer_support_chat_history"
     
     id = Column(Integer, primary_key=True, index=True)
     thread_id = Column(String, unique=True)

@@ -9,20 +9,20 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.models.get_db import get_async_db, get_db
 from app.models.model import User
-from app.models.coo_agent import CooChatHistory
-from app.prompts.coo_agent import coo_agent_prompt
+from app.models.customer_support import CustomerSupportChatHistory
+from app.prompts.customer_support import customer_support_agent, generate_faq, user_guide_generator, email_responder_agent
 from app.utils.user_auth import get_user_id_from_websocket, get_current_user
-from app.ai_agents.coo_agent import initialise_agent, message_reply_by_agent
+from app.ai_agents.customer_support import initialise_agent, message_reply_by_agent
 from app.services.babel import get_translator_dependency
 from app.utils.chatbots import summarizing_initial_chat
 
-router = APIRouter(tags=["coo-agent"])
+router = APIRouter(tags=["customer-support-agent"])
 
 class NameUpdate(BaseModel):
     name: str
 
-@router.websocket("/coo-agent/{id}")
-async def coo_agent_chat(id: int, websocket: WebSocket):
+@router.websocket("/customer-support-agent/{id}")
+async def customer_support_agent_chat(id: int, websocket: WebSocket):
     await websocket.accept()
     token = websocket.query_params.get("token")
     user_id = await get_user_id_from_websocket(websocket, token)
@@ -40,19 +40,31 @@ async def coo_agent_chat(id: int, websocket: WebSocket):
             data = await websocket.receive_text()
             
             async with get_async_db() as db:
-                chat = await db.get(CooChatHistory, id)
+                chat = await db.get(CustomerSupportChatHistory, id)
                 if not chat:
                     await websocket.send_json({"error": "This conversation does not exist"})
                     await websocket.close()
                     return
     
                 thread_id = chat.thread_id
-                prompt = coo_agent_prompt(language)
-                coo_agent = await initialise_agent(prompt)
-                ai_response = await message_reply_by_agent(coo_agent, data, thread_id)
+                agent_type = chat.agent_type
+                
+                if not agent_type:
+                    prompt = customer_support_agent(language)
+                else:
+                    if agent_type == "faq_generator":
+                        prompt = generate_faq(language)
+                    elif agent_type == "user_guide":
+                        prompt = user_guide_generator(language)
+                    elif agent_type == "email_responder":
+                        prompt = email_responder_agent(language)
+                    else:
+                        prompt = customer_support_agent(language)
+                customer_agent = await initialise_agent(prompt)
+                ai_response = await message_reply_by_agent(customer_agent, data, thread_id)
 
                 async with get_async_db() as db:
-                    chat = await db.get(CooChatHistory, id)
+                    chat = await db.get(CustomerSupportChatHistory, id)
                     chat_history = chat.chat_history
                     chat_history.append({'user': data, 'message_at': str(datetime.datetime.now(datetime.timezone.utc))})
                     time_now = datetime.datetime.now(datetime.timezone.utc)
@@ -67,8 +79,8 @@ async def coo_agent_chat(id: int, websocket: WebSocket):
             break
 
             
-@router.websocket("/new-coo-agent-chat")
-async def new_coo_agent_chat(websocket: WebSocket):
+@router.websocket("/new-customer-support-agent-chat")
+async def new_customer_agent_agent_chat(websocket: WebSocket):
     await websocket.accept()
 
     token = websocket.query_params.get("token")
@@ -84,7 +96,7 @@ async def new_coo_agent_chat(websocket: WebSocket):
 
         language = user.language
         thread_id = uuid.uuid4()
-        chat = CooChatHistory(thread_id=str(thread_id), name="Coo Agent Chat", user_id=user_id, chat_history=[])
+        chat = CustomerSupportChatHistory(thread_id=str(thread_id), name="Customer Support Agent Chat", user_id=user_id, chat_history=[])
         db.add(chat)
         await db.commit()
         await db.refresh(chat)
@@ -94,46 +106,60 @@ async def new_coo_agent_chat(websocket: WebSocket):
         try:
             data = await websocket.receive_json()
             
+            agent_type = "jgjgh"
             data = data.get("message")
             
             chat_name = await summarizing_initial_chat(data)
 
             async with get_async_db() as db:
-                chat = await db.get(CooChatHistory, chat_id)
+                chat = await db.get(CustomerSupportChatHistory, chat_id)
                 chat_history = chat.chat_history
                 chat_history.append({'user': data, 'message_at': str(datetime.datetime.now(datetime.timezone.utc))})
                 chat.chat_history = chat_history
                 chat.name = chat_name
+                if agent_type:
+                    chat.agent_type = agent_type
                 await db.commit()
 
-                prompt = coo_agent_prompt(language)
-                coo_agent = await initialise_agent(prompt)
-                ai_response = await message_reply_by_agent(coo_agent, data, thread_id)
+                if not agent_type:
+                    prompt = customer_support_agent(language)
+                else:
+                    if agent_type == "faq_generator":
+                        prompt = generate_faq(language)
+                    elif agent_type == "user_guide":
+                        prompt = user_guide_generator(language)
+                    elif agent_type == "email_responder":
+                        prompt = email_responder_agent(language)
+                    else:
+                        prompt = customer_support_agent(language)
+                        
+                customer_agent = await initialise_agent(prompt)
+                ai_response = await message_reply_by_agent(customer_agent, data, thread_id)
 
                 async with get_async_db() as db:
-                    chat = await db.get(CooChatHistory, chat_id)
+                    chat = await db.get(CustomerSupportChatHistory, chat_id)
                     chat_history = chat.chat_history
                     time_now = datetime.datetime.now(datetime.timezone.utc)
                     chat_history.append({'agent': ai_response, 'message_at': str(time_now)})
                     chat.chat_history = chat_history
                     await db.commit()
 
-                await websocket.send_json({'agent': ai_response, 'message_at': str(time_now)})
+            await websocket.send_json({'agent': ai_response})
 
-        except Exception as e:
+        except Exception:
             await websocket.close()
             break
         
 
-@router.get("/get-coo-chats")
-def get_coo_chats(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)
+@router.get("/get-customer-support-chats")
+def get_customer_support_chats(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)
                   , _ = Depends(get_translator_dependency)):
     
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
-    chats = db.query(CooChatHistory).filter_by(user_id=user_id).all()
+    chats = db.query(CustomerSupportChatHistory).filter_by(user_id=user_id).all()
     response = []
     if chats:
         for chat in chats:
@@ -146,15 +172,15 @@ def get_coo_chats(db: Session = Depends(get_db), user_id: str = Depends(get_curr
         return JSONResponse(content={'success': response}, status_code=200)
     return JSONResponse(content={'success': []}, status_code=200)
 
-@router.get("/get-coo-chat/{chat_id}")
-def get_coo_chat_history(chat_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user),
+@router.get("/get-customer-support-chat/{chat_id}")
+def get_customer_support_chat_history(chat_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user),
                          _ = Depends(get_translator_dependency)):
     
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
-    chat = db.query(CooChatHistory).filter_by(id=chat_id).first()
+    chat = db.query(CustomerSupportChatHistory).filter_by(id=chat_id).first()
     
     if not chat:
         return JSONResponse(content={'error': 'Chat does not exist'}, status_code=404)
@@ -162,15 +188,15 @@ def get_coo_chat_history(chat_id, db: Session = Depends(get_db), user_id: str = 
     return JSONResponse(content={'success': chat.chat_history}, status_code=200)
         
         
-@router.patch("/update-coo-chat-name/{chat_id}")
-def update_coo_chat_name(chat_id, payload: NameUpdate, db: Session = Depends(get_db),
+@router.patch("/update-customer-support-chat-name/{chat_id}")
+def update_customer_support_chat_name(chat_id, payload: NameUpdate, db: Session = Depends(get_db),
                          user_id: str = Depends(get_current_user), _ = Depends(get_translator_dependency)):
     
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
-    chat = db.query(CooChatHistory).filter_by(id=chat_id).first()
+    chat = db.query(CustomerSupportChatHistory).filter_by(id=chat_id).first()
     
     if not chat:
         return JSONResponse(content={'error': _('Chat does not exist')}, status_code=404)
@@ -180,15 +206,15 @@ def update_coo_chat_name(chat_id, payload: NameUpdate, db: Session = Depends(get
             
     return JSONResponse(content={'success': _("name updated successfully")}, status_code=200)
 
-@router.delete("/delete-coo-chat/{chat_id}")
-def delete_coo_chat(chat_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user),
+@router.delete("/delete-customer-support-chat/{chat_id}")
+def delete_customer_support_chat(chat_id, db: Session = Depends(get_db), user_id: str = Depends(get_current_user),
                     _ = Depends(get_translator_dependency)):
     
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         return JSONResponse(content={'error': _("user does not exist")}, status_code=404)
     
-    chat = db.query(CooChatHistory).filter_by(id=chat_id).first()
+    chat = db.query(CustomerSupportChatHistory).filter_by(id=chat_id).first()
     
     if not chat:
         return JSONResponse(content={'error': _('Chat does not exist')}, status_code=404)

@@ -40,7 +40,7 @@ def dashboard(db: Session = Depends(get_db), verify = Depends(check_admin_author
 @router.get("/user-management")
 def user_management(db: Session = Depends(get_db), verify = Depends(check_admin_authorization)):
     
-    users = db.query(User).all()
+    users = db.query(User).filter_by(isDeleted=False).all()
     
     response = []
     
@@ -167,7 +167,6 @@ def create_user(user: CreateUser, db: Session = Depends(get_db),
 
     new_user = User(
         email=user.email,
-        password=user.password,
         role=user.role,
         subscriptionType=user.subscriptionType,
         subscriptionStatus="active",
@@ -225,13 +224,23 @@ def update_subscription(user_id: int, payload: SubscriptionUpdate, db: Session =
     today = date.today()
 
     if payload.subscriptionType.lower() == "pro":
-        end_date = today + timedelta(days=30)
-        duration_type = "monthly"
-        renew_months = 1
+        if payload.subscriptionDurationType == "monthly":
+            end_date = today + timedelta(days=30)
+            duration_type = "monthly"
+            renew_months = 0
+        if payload.subscriptionDurationType == "yearly":
+            end_date = today + timedelta(days=365)
+            duration_type = "yearly"
+            renew_months = 11
     elif payload.subscriptionType.lower() == "team":
-        end_date = today + timedelta(days=365)
-        duration_type = "yearly"
-        renew_months = 12
+        if payload.subscriptionDurationType == "monthly":
+            end_date = today + timedelta(days=30)
+            duration_type = "monthly"
+            renew_months = 0
+        if payload.subscriptionDurationType == "yearly":
+            end_date = today + timedelta(days=365)
+            duration_type = "yearly"
+            renew_months = 11
     else:
         return JSONResponse(content={"detail":"Invalid subscription type"}, status_code=400)
 

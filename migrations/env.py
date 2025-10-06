@@ -17,6 +17,7 @@ from app.models.seo_agent import SeoChatHistory
 from app.models.coo_agent import CooChatHistory
 from app.models.hr_agent import HrChatHistory
 from app.models.content_creation_agent import ContentCreationChatHistory
+from app.models.customer_support import CustomerSupportChatHistory
 
 from dotenv import load_dotenv
 

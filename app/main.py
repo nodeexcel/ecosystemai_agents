@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .router import (appointment_setter, knowledge_base, email_agent,
                      phone_agent, account_agent, seo_agent, coo_agent, hr_agent,
-                     content_creation, admin)
+                     content_creation, admin, customer_support)
 from .social_media_integrations import (instagram, whatsapp, google_calendar, linkedin)
 app = FastAPI()
 
@@ -33,6 +33,7 @@ app.include_router(hr_agent.router)
 app.include_router(content_creation.router)
 app.include_router(linkedin.router)
 app.include_router(admin.router)
+app.include_router(customer_support.router)
 
 @app.get("/")
 def health_check():
