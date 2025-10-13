@@ -23,7 +23,7 @@ class AppointmentSetterSchema(BaseModel):
     business_description: str = Field(min_length=50)
     your_business_offer: str =  Field(min_length=50)
     platform_unique_id: str = Field(min_length=5)
-    qualification_questions: list[str]
+    qualification_questions: list[str] = []
     sequence: Sequence
     objective_of_the_agent: Optional[str]
     calendar_choosed: Optional[str] = "google_calendar"

@@ -3,9 +3,9 @@ from typing import Optional
 
 class CreateUser(BaseModel):
     email: str
-    role: str
+    role: str = "Admin"
     subscriptionType: str
-    subscriptionStatus: str
+    subscriptionStatus: str = "active"
     subscriptionDurationType: str
     
 class SubscriptionUpdate(BaseModel):

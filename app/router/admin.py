@@ -144,6 +144,7 @@ def delete_knowledge_base(knowledge_base_id: int, db: Session = Depends(get_db))
         return JSONResponse(content={'success': "Knowledge_base cannot get deleted"}, status_code=200)
     
     db.delete(knowledge_base)
+    db.commit()
     
     return JSONResponse(content={'success': "Knowledge_base deleted successfully"}, status_code=200)
 
@@ -157,11 +158,19 @@ def create_user(user: CreateUser, db: Session = Depends(get_db),
     start_date = datetime.now(timezone.utc)
 
     if user.subscriptionType.lower() == "pro":
-        end_date = start_date + timedelta(days=30)
-        number_of_renew_months = 1
+        if user.subscriptionDurationType == "monthly":
+            end_date = start_date + timedelta(days=30)
+            number_of_renew_months = 1
+        if user.subscriptionDurationType == "yearly":
+            end_date = start_date + timedelta(days=365)
+            number_of_renew_months = 12
     elif user.subscriptionType.lower() == "team":
-        end_date = start_date + timedelta(days=365)
-        number_of_renew_months = 12
+        if user.subscriptionDurationType == "monthly":
+            end_date = start_date + timedelta(days=30)
+            number_of_renew_months = 1
+        if user.subscriptionDurationType == "yearly":
+            end_date = start_date + timedelta(days=365)
+            number_of_renew_months = 12
     else:
         return JSONResponse(content={"detail":"Invalid subscription type"}, status_code=400)
 
