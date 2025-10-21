@@ -11,7 +11,8 @@ from pydantic import BaseModel
 from app.models.get_db import get_async_db, get_db
 from app.models.model import User
 from app.models.customer_support import (CustomerSupportChatHistory, SmartAgentIntegration,
-                                         SmartCustomerSupportAgent, SmartBotAvatars)
+                                         SmartCustomerSupportAgent, SmartBotAvatars,
+                                         CustomerSupportIntegrationChats)
 from app.schemas.customer_support import (CreateSmartBotSchema, CreateWebsiteLinkSchema, 
                                           UpdateSmartBotSchema, UpdateWebsiteLinkSchema,
                                           Message)
@@ -281,7 +282,7 @@ def add_avatar(
     # if not avatar_image.filename.endswith(".jpeg"):
     #     return JSONResponse(content={"sucess": "file extension should be jpeg, png."}, status_code=422)
     
-    file_path = f"/customer_support/{user_id}/{avatar_name}"
+    file_path = f"/customer_support/{user_id}/{avatar_image.filename}"
     
     avatar = db.query(SmartBotAvatars).filter_by(avatar_url=file_path, user_id=user_id).first()
     
@@ -448,37 +449,151 @@ def delete_smartbot(agent_id,
     db.commit()
     
     return JSONResponse(content={"success": "bot deleted successfully"}, status_code=200)
+
+@router.get("/smartbot-info/{agent_id}")
+def smartbot_info(agent_id,
+                  db: Session = Depends(get_db),
+    _ = Depends(get_translator_dependency)):
     
-@router.post("/test-chat/{agent_id}")
-def test_chat(
-    agent_id,
+    link = db.query(SmartAgentIntegration).filter_by(agent_id=agent_id).first()
+    
+    bot = db.query(SmartCustomerSupportAgent).filter_by(id=agent_id).first()
+    
+    if link and bot:
+        response = {}
+        response["agent_id"] = link.agent_id
+        response["selected_avatar_url"] = link.selected_avatar_url
+        response["first_message"] = link.first_message
+        response["colour"] = link.colour
+        response["agent_name"] = link.agent_name
+        response["session_id"] = link.id
+        
+        return JSONResponse(content={"info": response}, status_code=200)
+    
+    return JSONResponse(content={"error": "agent or session does not exist"}, status_code=400)
+
+@router.post("/smartbot/create-conversation/{agent_id}/{session_id}")
+async def smartbot_create_conversation(
     payload: Message,
-    db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    agent_id:str, 
+    session_id: str,
     _ = Depends(get_translator_dependency)):
     
     message = payload.message
-    thread_id = payload.thread_id
-    
-    bot = db.query(SmartCustomerSupportAgent).filter_by(id=agent_id).first()
-    if not bot:
-        return JSONResponse(content={"error": "bot does not exist"}, status_code=404)
-    
-    link = db.query(SmartAgentIntegration).filter_by(agent_id=agent_id).first()
-    if not link:
-        return JSONResponse(content={"error": "bot integration does not exist"}, status_code=404)
-    
-    prompt = smartbot(bot, link)
-    
-    test_agent = initialise_agent(prompt)
-    ai_response = message_reply_by_agent(test_agent, message, thread_id)
-    
-    return JSONResponse(content={"success": ai_response}, status_code=200)
-
-@router.post("/smartbot/{session_id}")
-def smartbot_chat(
-    db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user),
+    async with get_async_db() as db:
+        result = await db.execute(select(SmartCustomerSupportAgent).where(SmartCustomerSupportAgent.id==agent_id))
+        bot = result.scalar_one_or_none()
+        result = await db.execute(select(SmartAgentIntegration).where(SmartAgentIntegration.id==session_id))
+        integration = result.scalar_one_or_none()
+        
+        if bot and integration:
+            prompt = await smartbot(bot, integration)
+            agent = await initialise_agent(prompt)
+            id = str(uuid.uuid4())
+            ai_response = await message_reply_by_agent(agent, message, id)
+            chat_list = []
+            chat_history = {}
+            chat_history["user"] = {"message": message, "time": str(datetime.datetime.now(datetime.timezone.utc))}
+            chat_history["ai"] = {"response": ai_response, "time": str(datetime.datetime.now(datetime.timezone.utc))}   
+            chat_list.append(chat_history)
+            customer_support_integration = CustomerSupportIntegrationChats(id=id, chat_history=chat_list, agent_id=agent_id)
+            db.add(customer_support_integration)
+            await db.commit()
+            
+            return JSONResponse(content={'ai_response': ai_response, 'chat_id': id}, status_code=201)
+        return JSONResponse(content={"error": "agent or session does not exist"}, status_code=404)
+        
+@router.post("/smartbot/chat/{chat_id}")
+async def third_party_smartbot(
+    payload: Message,
+    chat_id:str, 
     _ = Depends(get_translator_dependency)):
     
-    print("fghjkl")
+    message = payload.message
+    async with get_async_db() as db:
+        result = await db.execute(select(CustomerSupportIntegrationChats).where(CustomerSupportIntegrationChats.id==chat_id))
+        chat = result.scalar_one_or_none()
+        if not chat:
+            return JSONResponse(content={"error": "chat does not exist"}, status_code=404)
+        result = await db.execute(select(SmartCustomerSupportAgent).where(SmartCustomerSupportAgent.id==chat.agent_id))
+        bot = result.scalar_one_or_none()
+        result = await db.execute(select(SmartAgentIntegration).where(SmartAgentIntegration.agent_id==chat.agent_id))
+        integration = result.scalar_one_or_none()
+        
+        if bot and integration:
+            prompt = await smartbot(bot, integration)
+            agent = await initialise_agent(prompt)
+            id = str(uuid.uuid4())
+            ai_response = await message_reply_by_agent(agent, message, id)
+            chat_history = {}
+            chat_history["user"] = {"message": message, "time": str(datetime.datetime.now(datetime.timezone.utc))}
+            chat_history["ai"] = {"response": ai_response, "time": str(datetime.datetime.now(datetime.timezone.utc))}           
+            chat_list = chat.chat_history
+            chat_list.append(chat_history)
+            chat.chat_history = chat_list
+            await db.commit()
+            
+            return JSONResponse(content={'ai_response': ai_response, 'chat_id': id}, status_code=201)
+        
+@router.get("/customer-support-history/get-chat-history/{chat_id}")
+def get_third_party_chat_history(chat_id:str, 
+                                 db: Session = Depends(get_db),
+                                 _ = Depends(get_translator_dependency)):
+    chat = db.query(CustomerSupportIntegrationChats).filter_by(id=chat_id).first()
+    
+    if not chat:
+        return JSONResponse(content={"error": "chat does not exist"}, status_code=404)
+    
+    return JSONResponse(content={'success': chat.chat_history}, status_code=200)
+        
+@router.get("/get-smartbot-chats/{agent_id}")
+def get_smartbot_chats(agent_id: str,
+                        db: Session = Depends(get_db),
+                        user_id: str = Depends(get_current_user),
+                        _ = Depends(get_translator_dependency)):
+    
+    chats = db.query(CustomerSupportIntegrationChats).filter_by(agent_id=agent_id).all()
+    
+    response = []
+    
+    for chat in chats:
+        chat_info = {}
+        chat_info["chat_id"] = chat.id
+        chat_info["created_at"] = str(chat.created_at)
+        chat_info["integration"] = "website"
+        chat_info["name"] = "customer_support"
+        response.append(chat_info)
+    
+    return JSONResponse(content={'success': response}, status_code=200)
+
+@router.get("/get-smartbot-chat-history/{chat_id}")
+def get_smartbot_chat_history(chat_id: str,
+                        db: Session = Depends(get_db),
+                        user_id: str = Depends(get_current_user),
+                        _ = Depends(get_translator_dependency)):
+    
+    chat = db.query(CustomerSupportIntegrationChats).filter_by(id=chat_id).first()
+    
+    bot = db.query(SmartAgentIntegration).filter_by(agent_id=chat.agent_id).first()
+    
+    if not chat:
+        return JSONResponse(content={"error": "chat does not exist"}, status_code=404)
+    
+    return JSONResponse(content={'chat': chat.chat_history,
+                                 'avatar_url': bot.selected_avatar_url}, status_code=200)
+
+@router.delete("/delete-smartbot-chat/{chat_id}")
+def delete_smartbot_chat(chat_id: str,
+                        db: Session = Depends(get_db),
+                        user_id: str = Depends(get_current_user),
+                        _ = Depends(get_translator_dependency)):
+    
+    chat = db.query(CustomerSupportIntegrationChats).filter_by(id=chat_id).first()
+    
+    if not chat:
+        return JSONResponse(content={"error": "chat does not exist"}, status_code=404)
+    
+    db.delete(chat)
+    db.commit()
+    
+    return JSONResponse(content={'success': "chat deleted successfully"}, status_code=200)

@@ -176,7 +176,7 @@ You must always respond in the same language which is {language} as this prompt.
     """
     return generate_faq_prompt
     
-def smartbot(bot, link):
+async def smartbot(bot, link):
    smartbot_prompt = f"""
 You are a customer support agent whose task is to assist users based on their queries and provide accurate, relevant solutions. Always respond in the language the user is using.  
 
@@ -187,7 +187,7 @@ The chat should be transferred to a human agent only under the conditions specif
 
 **Reference Material:**  
 You can use the following reference text to answer user queries or provide solutions. Make sure to understand the problem thoroughly and utilize the reference text when necessary:  
-{bot.reference.text}  
+{bot.reference_text}  
 
 **Core Prompt and Behavior:**  
 The main prompt and behavior are defined by the user. Follow it closely: {bot.prompt}.  

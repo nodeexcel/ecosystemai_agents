@@ -54,6 +54,16 @@ class SmartBotAvatars(Base):
     avatar_name = Column(String, nullable=True)
     user_id = Column(Integer, nullable=False)
     
+class CustomerSupportIntegrationChats(Base):
+    
+    __tablename__ = "customer_support_chats"
+    
+    id = Column(String, primary_key=True, default=uuid.uuid4())
+    chat_history = Column(MutableList.as_mutable(ARRAY(JSONB)), default=[])
+    agent_id = Column(String, ForeignKey("smart_customer_support_chatbot.id", ondelete="CASCADE"))
+    created_at = Column(DateTime(timezone=True), default=datetime.datetime.now(datetime.timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=datetime.datetime.now(datetime.timezone.utc))
+    
     
     
     

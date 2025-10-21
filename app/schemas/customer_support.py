@@ -38,4 +38,3 @@ class UpdateWebsiteLinkSchema(BaseModel):
     
 class Message(BaseModel):
     message: str
-    thread_id : str
