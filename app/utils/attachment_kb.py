@@ -48,7 +48,7 @@ def fetch_text(message, user_id):
             vector = embedded_query, 
             top_k = 5,
             include_metadata=True
-            )
+        )
 
         matches = results["matches"]
 

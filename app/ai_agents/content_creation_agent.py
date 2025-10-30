@@ -6,6 +6,7 @@ from app.models.model import  KnowledgeAttachment
 from app.models.checkpointer_agent import async_checkpointer
 from app.models.get_db import get_async_db
 from app.utils.current_user import current_user
+from app.utils.attachment_kb import fetch_text
 from .email_agent import llm
 
 
@@ -55,6 +56,28 @@ async def summarize_tools(filename: str | None = None) -> str:
             return ""
         
         return content_attachment.file_summary
+
+
+async def query_from_vector(user_query: str) -> str:
+    """
+    Search vector embedding the getting respones related to document/file
+    uploaded/shared by user.
+    
+    If the user asked query related to uploaded/shared file query the 
+    vector database for it.
+    
+    
+    Args:
+        user_query: User question.
+    
+    Returns: String data from vector db.
+    """
+    print("Query vector data for user query: ", user_query)
+    user = current_user.get()
+    user_id = user.id
+    data = fetch_text(user_query, user_id)
+    print("Quried data: ", data)
+    return data 
     
     
 async def initialise_agent(prompt):
@@ -66,7 +89,7 @@ async def initialise_agent(prompt):
     content_creation_agent = create_react_agent(
         model=model,
         prompt=prompt,
-        tools=[summarize_tools],
+        tools=[summarize_tools, query_from_vector],
         checkpointer=async_checkpointer,
     )
     
