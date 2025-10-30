@@ -3,6 +3,8 @@ from fastapi import Depends, HTTPException, WebSocket
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 
+from .current_user import current_user
+
 SECRET_KEY = os.getenv('JWT_SECRET')
 ALGORITHM = "HS256"
 
@@ -14,6 +16,7 @@ def verify_token(token: str):
         return None
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="fake")
+
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
     payload = verify_token(token)

@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 from app.models.get_db import get_async_db, get_db
 from app.models.model import User
 from app.models.content_creation_agent import (
-    AttachmentContentCreation,
     ContentCreationChatHistory, 
     Content,
     LinkedInPost, 
@@ -34,6 +33,7 @@ from app.ai_agents.email_agent import llm
 from app.services.babel import get_translator_dependency
 from app.services.aws_boto3 import aws_client, get_upload_args
 from app.utils.chatbots import summarizing_initial_chat
+from app.utils.current_user import current_user
 from app.utils.instagram import publish_content_instagram
 from app.utils.linkedin import publish_content_linkedin
 from app.utils.attachment_kb import process_attachment_to_pinecone
@@ -48,6 +48,7 @@ async def content_creation_chat(id: int, websocket: WebSocket):
     async with get_async_db() as db:
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalars().first()
+        current_user.set(user)
         if not user:
             await websocket.send_json({"error": "User does not exist"})
             await websocket.close()
@@ -57,11 +58,6 @@ async def content_creation_chat(id: int, websocket: WebSocket):
     while True:
         try:
             data = await websocket.receive_text()
-            
-            data = json.loads(data)
-            user_query = data.get("message")
-            print("Websocket received data:", user_query)
-            
             
             async with get_async_db() as db:
                 chat = await db.get(ContentCreationChatHistory, id)
@@ -73,7 +69,7 @@ async def content_creation_chat(id: int, websocket: WebSocket):
                 thread_id = chat.thread_id
                 prompt = content_creation_agent_prompt(language)
                 content_creation_agent = await initialise_agent(prompt)
-                ai_response = await message_reply_by_agent(content_creation_agent, user_query, thread_id)
+                ai_response = await message_reply_by_agent(content_creation_agent, data, thread_id)
 
                 async with get_async_db() as db:
                     chat = await db.get(ContentCreationChatHistory, id)
@@ -101,6 +97,7 @@ async def new_content_creation_chat(websocket: WebSocket):
     async with get_async_db() as db:
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalars().first()
+        current_user.set(user)
         if not user:
             await websocket.send_json({"error": "User does not exist"})
             await websocket.close()
@@ -695,78 +692,3 @@ def get_scheduled_content(db: Session = Depends(get_db), user_id: str = Depends(
         response.append(content_detail)
     return JSONResponse(content={"content_details": response}, status_code=200)        
     
-    
-@router.post("/coo-attachments")
-async def upload_attachment(
-    # thread_id: str,
-    db: Session = Depends(get_db), 
-    user_id: str = Depends(get_current_user),
-    attachment: UploadFile = File(...)
-):
-    user = db.query(User).filter_by(id=user_id).first()
-    if not user:
-        return JSONResponse(
-            content={"error": "User does not exist"},
-            status_code=404
-        )
-        
-    file_id = str(uuid.uuid4())
-    filename = attachment.filename
-    file_path = f"content-attachment/{user.email}/{file_id}_{filename}"
-    extra_args = get_upload_args(filename)
-    file_content = await attachment.read()
-    
-    try:
-        aws_client.upload_fileobj(
-            Fileobj=attachment.file,
-            Bucket=os.getenv("BUCKET_NAME"),
-            Key=file_path,
-            ExtraArgs=extra_args
-        )
-    except Exception as e:
-        print(e)
-        return JSONResponse(
-            content={"error": "could not upload attachment"},
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-        
-    attachment_url = os.getenv("S3_BASE_URL") + f"/{file_path}"
-    
-    
-    # metadata = {
-    #     "attachment_url": attachment_content_creation.attachment_url,
-    #     "thread_id": thread_id,
-    #     "file_id": attachment_content_creation.file_id,
-    #     "filename": attachment_content_creation.filename,
-    # }
-    # process_attachment_to_pinecone(attachment, user.id, metadata)
-    
-    metadata = {
-        "attachment_url": attachment_url,
-        "file_id": file_id,
-        "filename": filename,
-    }
-    new_file_upload = UploadFile(
-        filename=filename,
-        file=BytesIO(file_content)
-    )
-    documents: list[Document] = process_attachment_to_pinecone(new_file_upload, user.id, metadata)
-    chain = load_summarize_chain(llm, chain_type="map_reduce")
-    summary = await chain.ainvoke(documents)
-    print("Summary: ", summary['output_text'])
-    
-    attachment_content_creation = AttachmentContentCreation(
-        attachment_url=attachment_url,
-        # thread_id=thread_id,
-        file_id=file_id, 
-        filename=filename,
-        file_summary=summary['output_text']
-    )
-    db.add(attachment_content_creation)
-    db.commit()
-    db.refresh(attachment_content_creation)
-    
-    return JSONResponse(
-        content={"message": {"file_id": file_id, "filename": filename}},
-        status_code=status.HTTP_202_ACCEPTED
-    )
