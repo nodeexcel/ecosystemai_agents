@@ -1,5 +1,5 @@
 import os, datetime, uuid
-from sqlalchemy import Column, Boolean, Integer, String, ARRAY, DateTime, ForeignKey, Date, BigInteger, Text, Time
+from sqlalchemy import Column, Boolean, func, Integer, String, ARRAY, DateTime, ForeignKey, Date, BigInteger, Text, Time
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableList
 
@@ -93,6 +93,16 @@ class ScheduledContent(Base):
     
     
     
+class AttachmentContentCreation(Base):
     
+    __tablename__ = "content_create_attachment"
     
+    # FIXME: confirm for mimetype
+    # content_type = Column(String, null=False)
+    # thread_id = Column(String, nullable=False)
+    attachment_url = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    file_id = Column(Integer, primary_key=True)
+    filename = Column(String, nullable=False)
+    file_summary = Column(String, nullable=True)
     
