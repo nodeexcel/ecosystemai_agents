@@ -1,4 +1,4 @@
-import os, uuid, datetime, requests
+import json, os, uuid, datetime, requests
 from datetime import date, time, timezone
 from io import BytesIO
 from typing import Optional
@@ -57,12 +57,11 @@ async def content_creation_chat(id: int, websocket: WebSocket):
     while True:
         try:
             data = await websocket.receive_text()
-            print("Websocket received data:", data)
             
-            user_query = data.get('message')
-            file_id = data.get("file_id")
+            data = json.loads(data)
+            user_query = data.get("message")
+            print("Websocket received data:", user_query)
             
-            # TODO: process the fiel_id
             
             async with get_async_db() as db:
                 chat = await db.get(ContentCreationChatHistory, id)
@@ -754,20 +753,18 @@ async def upload_attachment(
     documents: list[Document] = process_attachment_to_pinecone(new_file_upload, user.id, metadata)
     chain = load_summarize_chain(llm, chain_type="map_reduce")
     summary = await chain.ainvoke(documents)
-    # print("Summary: ", summary['output_text'])
+    print("Summary: ", summary['output_text'])
     
     attachment_content_creation = AttachmentContentCreation(
         attachment_url=attachment_url,
         # thread_id=thread_id,
         file_id=file_id, 
         filename=filename,
-        file_summary=summary
+        file_summary=summary['output_text']
     )
     db.add(attachment_content_creation)
     db.commit()
-    db.referesh(attachment_content_creation)
-    
-    
+    db.refresh(attachment_content_creation)
     
     return JSONResponse(
         content={"message": {"file_id": file_id, "filename": filename}},

@@ -1,8 +1,53 @@
 import os, json
 from langchain.chat_models import init_chat_model
 from langgraph.prebuilt import create_react_agent
+from sqlalchemy import select
+from app.models.content_creation_agent import AttachmentContentCreation
 from app.models.checkpointer_agent import async_checkpointer
+from app.models.get_db import get_async_db
 from .email_agent import llm
+
+
+async def summarize_tools(filename: str | None = None) -> str:
+    """
+    Get summary of the file.
+    
+    If the user provide the filename, then get the summary for that file.
+    Else fetch the summary for the latest processed file.
+    
+    Args:
+        filename: Name of the file to fetch the summary
+        
+    Returns: Return the summary for given file id.
+    """
+    async with get_async_db() as db:
+        content_attachment: AttachmentContentCreation | None = None
+        
+        if filename:
+            print(f"Tool -> searching summary for filename: >{filename}<")
+            result = await db.execute(
+                select(AttachmentContentCreation)
+                .where(AttachmentContentCreation.filename == filename)
+                .order_by(AttachmentContentCreation.created_at.desc())
+                .limit(1)
+            )
+            content_attachment = result.scalars().first()
+            print("Tool -> ", result)
+        else:
+            print("Tool -> searching summary of latest file")
+            result = await db.execute(
+                select(AttachmentContentCreation)
+                .order_by(AttachmentContentCreation.created_at.desc())
+                .limit(1)
+            )
+            content_attachment = result.scalars().first()
+            print("Tool -> ", result)
+        
+        if not content_attachment:
+            return ""
+        
+        return content_attachment.file_summary
+    
     
 async def initialise_agent(prompt):
     model = init_chat_model(
@@ -13,7 +58,7 @@ async def initialise_agent(prompt):
     content_creation_agent = create_react_agent(
         model=model,
         prompt=prompt,
-        tools=[],
+        tools=[summarize_tools],
         checkpointer=async_checkpointer,
     )
     
