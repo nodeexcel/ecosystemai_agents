@@ -155,7 +155,7 @@ async def upload_attachment(
         
     file_id = str(uuid.uuid4())
     filename = attachment.filename
-    file_path = f"kb-attachment/{agent_name}/{user.email}/{file_id}_{filename}"
+    file_path = f"chatbot/{agent_name}/{user.email}/{file_id}_{filename}"
     extra_args = get_upload_args(filename)
     file_content = await attachment.read()
     
