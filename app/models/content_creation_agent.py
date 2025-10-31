@@ -1,5 +1,5 @@
 import os, datetime, uuid
-from sqlalchemy import Column, Boolean, Integer, String, ARRAY, DateTime, ForeignKey, Date, BigInteger, Text, Time
+from sqlalchemy import Column, Boolean, func, Integer, String, ARRAY, DateTime, ForeignKey, Date, BigInteger, Text, Time
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableList
 
@@ -93,6 +93,5 @@ class ScheduledContent(Base):
     
     
     
-    
-    
+
     
