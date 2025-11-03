@@ -1,19 +1,32 @@
+from io import BytesIO
 import os
-from fastapi import Depends, UploadFile, Form, File
+import uuid 
+
+from fastapi import Depends, UploadFile, Form, File, status
 from fastapi.routing import APIRouter
 from fastapi.responses import JSONResponse 
+from langchain.chains.summarize import load_summarize_chain
+from langchain_core.documents import Document
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.ai_agents.email_agent import llm
 from app.models.get_db import get_db
-from app.models.model import User, KnowledgeBase
+from app.models.model import User, KnowledgeAttachment, KnowledgeBase
 from app.services.aws_boto3 import aws_client, get_upload_args
 from app.utils.user_auth import get_current_user
-from app.utils.knowledge_base import website_scrape, knowledge_base_embedding_and_storage, process_large_pdf_to_pinecone
+from app.utils.knowledge_base import (
+    website_scrape, 
+    knowledge_base_embedding_and_storage, 
+    process_large_pdf_to_pinecone,
+)
+from app.utils.attachment_kb import process_attachment_to_pinecone
 from app.services.babel import get_translator_dependency
 
+
 router = APIRouter(tags=['knowledge_base'])
+
     
 @router.post('/knowledge-base')
 def embeddings_for_snippets(data: str = Form(...),
@@ -125,8 +138,83 @@ def delete_knowledge_base(id, db: Session = Depends(get_db), user_id: str = Depe
 
 
 
+    
+@router.post("/kb-attachments")
+async def upload_attachment(
+    agent_name: str,
+    db: Session = Depends(get_db), 
+    user_id: str = Depends(get_current_user),
+    attachment: UploadFile = File(...)
+):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(
+            content={"error": "User does not exist"},
+            status_code=404
+        )
         
+    file_id = str(uuid.uuid4())
+    filename = attachment.filename
+    file_path = f"chatbot/{agent_name}/{user.email}/{file_id}_{filename}"
+    extra_args = get_upload_args(filename)
+    file_content = await attachment.read()
+    
+    try:
+        aws_client.upload_fileobj(
+            Fileobj=attachment.file,
+            Bucket=os.getenv("BUCKET_NAME"),
+            Key=file_path,
+            ExtraArgs=extra_args
+        )
+    except Exception as e:
+        print(e)
+        return JSONResponse(
+            content={"error": "could not upload attachment"},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
         
+    attachment_url = os.getenv("S3_BASE_URL") + f"/{file_path}"
+    
+    
+    # metadata = {
+    #     "attachment_url": attachment_content_creation.attachment_url,
+    #     "thread_id": thread_id,
+    #     "file_id": attachment_content_creation.file_id,
+    #     "filename": attachment_content_creation.filename,
+    # }
+    # process_attachment_to_pinecone(attachment, user.id, metadata)
+    
+    metadata = {
+        "attachment_url": attachment_url,
+        "file_id": file_id,
+        "filename": filename,
+    }
+    new_file_upload = UploadFile(
+        filename=filename,
+        file=BytesIO(file_content)
+    )
+    documents: list[Document] = process_attachment_to_pinecone(new_file_upload, user.id, metadata)
+    chain = load_summarize_chain(llm, chain_type="map_reduce")
+    summary = await chain.ainvoke(documents)
+    print("Summary: ", summary['output_text'])
+    
+    attachment_content_creation = KnowledgeAttachment(
+        agent_name=agent_name,
+        attachment_url=attachment_url,
+        # thread_id=thread_id,
+        file_id=file_id, 
+        filename=filename,
+        file_summary=summary['output_text'],
+        user_id=user.id
+    )
+    db.add(attachment_content_creation)
+    db.commit()
+    db.refresh(attachment_content_creation)
+    
+    return JSONResponse(
+        content={"message": {"file_id": file_id, "filename": filename}},
+        status_code=status.HTTP_202_ACCEPTED
+    )
         
         
     

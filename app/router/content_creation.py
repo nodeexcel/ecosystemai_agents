@@ -1,17 +1,26 @@
-import os, uuid, datetime, requests
+import json, os, uuid, datetime, requests
 from datetime import date, time, timezone
+from io import BytesIO
 from typing import Optional
 
-from fastapi import WebSocket, Depends, File, UploadFile, Form
+from fastapi import WebSocket, Depends, File, UploadFile, Form, status
 from fastapi.routing import APIRouter
 from fastapi.responses import JSONResponse
+from langchain.chains.summarize import load_summarize_chain
+from langchain_core.documents import Document
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.get_db import get_async_db, get_db
 from app.models.model import User
-from app.models.content_creation_agent import (ContentCreationChatHistory, Content,
-                                               LinkedInPost, XPost, YoutubeScript, ScheduledContent)
+from app.models.content_creation_agent import (
+    ContentCreationChatHistory, 
+    Content,
+    LinkedInPost, 
+    XPost, 
+    YoutubeScript, 
+    ScheduledContent
+)
 from app.models.social_media_integrations import Instagram, LinkedIn
 from app.schemas.content_creation import (NameUpdate, PredisCheck, ContentCreateSchema,
                                           LinkedInPostSchema, ContentUpdateSchema, XPostSchema,
@@ -20,11 +29,14 @@ from app.prompts.content_creation import (content_creation_agent_prompt, linked_
                                           x_post_prompt_generator, youtube_script_prompt_generator)
 from app.utils.user_auth import get_user_id_from_websocket, get_current_user
 from app.ai_agents.content_creation_agent import initialise_agent, message_reply_by_agent, text_content_generation
+from app.ai_agents.email_agent import llm
 from app.services.babel import get_translator_dependency
 from app.services.aws_boto3 import aws_client, get_upload_args
 from app.utils.chatbots import summarizing_initial_chat
+from app.utils.current_user import current_user
 from app.utils.instagram import publish_content_instagram
 from app.utils.linkedin import publish_content_linkedin
+from app.utils.attachment_kb import process_attachment_to_pinecone
 
 router = APIRouter(tags=["content-creation-agent"])
 
@@ -36,6 +48,7 @@ async def content_creation_chat(id: int, websocket: WebSocket):
     async with get_async_db() as db:
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalars().first()
+        current_user.set(user)
         if not user:
             await websocket.send_json({"error": "User does not exist"})
             await websocket.close()
@@ -84,6 +97,7 @@ async def new_content_creation_chat(websocket: WebSocket):
     async with get_async_db() as db:
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalars().first()
+        current_user.set(user)
         if not user:
             await websocket.send_json({"error": "User does not exist"})
             await websocket.close()
@@ -677,6 +691,4 @@ def get_scheduled_content(db: Session = Depends(get_db), user_id: str = Depends(
         content_detail['published_time'] = str(content.published_time)
         response.append(content_detail)
     return JSONResponse(content={"content_details": response}, status_code=200)        
-    
-    
     
