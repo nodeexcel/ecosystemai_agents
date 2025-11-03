@@ -7,7 +7,7 @@ from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.models.get_db import get_db
-from app.models.model import User
+from app.models.model import User, AgentIntegrationTrack
 from app.models.appointment_setter import (AppointmentSetter, AppointmentAgentLeads,
                                            LeadAnalytics)
 from app.models.social_media_integrations import Instagram
@@ -193,7 +193,7 @@ def delete_connected_insta_accounts(instagram_id, db: Session = Depends(get_db),
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
-    connected_agent = db.query(AgentIntegrationTrack).filter_by(platform_id=whatsapp_id).first()
+    connected_agent = db.query(AgentIntegrationTrack).filter_by(platform_id=instagram_id).first()
     if connected_agent:
         return JSONResponse(content={"success": f"""The id is linked with an agent.
                                      Either delete agent or relink with another account."""}, status_code=400)
