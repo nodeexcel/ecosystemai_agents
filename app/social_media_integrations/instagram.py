@@ -193,9 +193,9 @@ def delete_connected_insta_accounts(instagram_id, db: Session = Depends(get_db),
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
-    agent = db.query(AppointmentSetter).filter_by(platform_unique_id=instagram_id).first()
-    if agent:
-        return JSONResponse(content={"success": f"""The id is linked with {agent.agent_name}.
+    connected_agent = db.query(AgentIntegrationTrack).filter_by(platform_id=whatsapp_id).first()
+    if connected_agent:
+        return JSONResponse(content={"success": f"""The id is linked with an agent.
                                      Either delete agent or relink with another account."""}, status_code=400)
 
     account = db.query(Instagram).filter_by(instagram_user_id=instagram_id, user_id=user_id).first()

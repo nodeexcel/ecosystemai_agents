@@ -669,7 +669,7 @@ def schedule_content(text: str = Form(...),
     
     return JSONResponse(content={'success': "Content is scheduled"}, status_code=201)
     
-@router.get("/get-schduled-content")
+@router.get("/get-scheduled-content")
 def get_scheduled_content(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     
     user = db.query(User).filter_by(id=user_id).first()
@@ -682,7 +682,7 @@ def get_scheduled_content(db: Session = Depends(get_db), user_id: str = Depends(
     
     for content in scheduled_contents:
         content_detail = {}
-        content_detail['schduled_content_id'] = content.id
+        content_detail['scheduled_content_id'] = content.id
         content_detail['platform'] = content.platform
         content_detail['platform_unique_id'] = content.platform_unique_id
         content_detail['scheduled_type'] = content.scheduled_type

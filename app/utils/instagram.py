@@ -107,7 +107,8 @@ def publish_content_instagram(access_token, refresh_token, instagram_user_id, me
     response = requests.post(url, headers=headers, data=payload)
     
     if response.status_code != 200:
-        return HTTPException(detail="Could not publish content", status_code=500)
+        print(response.text)
+        raise HTTPException(detail="Could not publish content", status_code=500)
     response = response.json()
     
     container_id = response.get("id")
@@ -123,10 +124,12 @@ def publish_content_instagram(access_token, refresh_token, instagram_user_id, me
         "creation_id": container_id 
     }
     
+    time.sleep(20)
     response = requests.post(url, headers=headers, data=payload)
     
     if response.status_code != 200:
-        return HTTPException(detail="Could not publish content", status_code=500)
+        print(response.text)
+        raise HTTPException(detail="Could not publish content", status_code=500)
     
     response = response.json()
     

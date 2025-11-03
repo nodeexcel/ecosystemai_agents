@@ -9,13 +9,14 @@ from sqlalchemy.orm import Session
 
 from pydantic import BaseModel
 from app.models.get_db import get_async_db, get_db
-from app.models.model import User
+from app.models.model import User, AgentIntegrationTrack
 from app.models.customer_support import (CustomerSupportChatHistory, SmartAgentIntegration,
                                          SmartCustomerSupportAgent, SmartBotAvatars,
                                          CustomerSupportIntegrationChats)
 from app.schemas.customer_support import (CreateSmartBotSchema, CreateWebsiteLinkSchema, 
                                           UpdateSmartBotSchema, UpdateWebsiteLinkSchema,
-                                          Message)
+                                          Message, PlatformIntegration)
+from app.models.social_media_integrations import Whatsapp
 from app.prompts.customer_support import (customer_support_agent, generate_faq,
                                           user_guide_generator, email_responder_agent,
                                           smartbot)
@@ -271,6 +272,33 @@ def link_smartbot(
     
     return JSONResponse(content={"sucess": "Bot linked to a website."}, status_code=201)
 
+
+@router.post("/link-customer-support/whatsapp/{agent_id}")
+def connect_agent_whatsapp(
+    agent_id,
+    payload: PlatformIntegration,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+    _ = Depends(get_translator_dependency)):
+    
+    account = db.query(Whatsapp).filter_by(whatsapp_phone_id=payload.platform_id).first()
+    
+    if not account:
+        return JSONResponse(content={"error": "Account does not exist"}, status_code=404)
+    
+    connected_account = db.query(AgentIntegrationTrack).filter_by(platform_id=payload.platform_id).first()
+    
+    if connected_account:
+        return JSONResponse(content={"error": "Account is already connected"}, status_code=409)
+    
+    new_account = AgentIntegrationTrack(agent_type="customer_support", platform_id=payload.platform_id,
+                                        integration_platform="whatsapp", agent_id=agent_id)
+    db.add(new_account)
+    db.commit()
+    
+    return JSONResponse(content={"error": "Account connected"}, status_code=201)
+    
+
 @router.post('/add-avatar')
 def add_avatar(
     avatar_name: str = Form(None),
@@ -282,7 +310,7 @@ def add_avatar(
     # if not avatar_image.filename.endswith(".jpeg"):
     #     return JSONResponse(content={"sucess": "file extension should be jpeg, png."}, status_code=422)
     
-    file_path = f"/customer_support/{user_id}/{avatar_image.filename}"
+    file_path = f"customer_support/{user_id}/{avatar_image.filename}"
     
     avatar = db.query(SmartBotAvatars).filter_by(avatar_url=file_path, user_id=user_id).first()
     
@@ -299,7 +327,7 @@ def add_avatar(
         print(e)
         return JSONResponse(content={"error": "could not upload document"}, status_code=500)
         
-    avatar_url = os.getenv("S3_BASE_URL") + file_path
+    avatar_url = os.getenv("S3_BASE_URL") + f"/{file_path}"
     
     new_avatar = SmartBotAvatars(avatar_name=avatar_name, avatar_url=avatar_url, user_id=user_id)
     db.add(new_avatar)
@@ -445,6 +473,10 @@ def delete_smartbot(agent_id,
     if not bot:
         return JSONResponse(content={"error": "bot does not exist"}, status_code=404)
     
+    connected_account = db.query(AgentIntegrationTrack).filter_by(agent_id=agent_id).first()
+    if connected_account:
+        db.delete(connected_account)
+        
     db.delete(bot)
     db.commit()
     
@@ -560,7 +592,7 @@ def get_smartbot_chats(agent_id: str,
         chat_info = {}
         chat_info["chat_id"] = chat.id
         chat_info["created_at"] = str(chat.created_at)
-        chat_info["integration"] = "website"
+        chat_info["integration"] = chat.platform
         chat_info["name"] = "customer_support"
         response.append(chat_info)
     
@@ -579,8 +611,10 @@ def get_smartbot_chat_history(chat_id: str,
     if not chat:
         return JSONResponse(content={"error": "chat does not exist"}, status_code=404)
     
-    return JSONResponse(content={'chat': chat.chat_history,
-                                 'avatar_url': bot.selected_avatar_url}, status_code=200)
+    if bot:
+        return JSONResponse(content={'chat': chat.chat_history,
+                                    'avatar_url': bot.selected_avatar_url}, status_code=200)
+    return JSONResponse(content={'chat': chat.chat_history}, status_code=200)
 
 @router.delete("/delete-smartbot-chat/{chat_id}")
 def delete_smartbot_chat(chat_id: str,

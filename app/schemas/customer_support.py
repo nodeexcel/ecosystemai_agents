@@ -38,3 +38,10 @@ class UpdateWebsiteLinkSchema(BaseModel):
     
 class Message(BaseModel):
     message: str
+
+class PlatformIntegration(BaseModel):
+    
+    integration_platform: str = "Whatsapp"
+    platform_id: str
+    
+    

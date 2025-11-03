@@ -129,14 +129,28 @@ class KnowledgeBase(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE")) 
     created_at = Column(DateTime, default=datetime.datetime.now())
 
+class AgentIntegrationTrack(Base):
+    __tablename__ = "agent_integration_track"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    agent_type = Column(String, nullable=False)
+    integration_platform = Column(String, nullable=False)
+    platform_id = Column(String, nullable=False)
+    agent_id = Column(String, nullable=True)
+    
+    
+class PhoneCredits(Base):
+    __tablename__ = "phone_credits"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    balance = Column(Float, nullable=True)
+    credits = Column(Float, nullable=True)
 
 class KnowledgeAttachment(Base):
     
     __tablename__ = "knowledge_attachment"
     
-    # FIXME: confirm for mimetype
-    # content_type = Column(String, null=False)
-    # thread_id = Column(String, nullable=False)
     agent_name = Column(String, nullable=False)
     attachment_url = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

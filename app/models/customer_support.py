@@ -61,6 +61,9 @@ class CustomerSupportIntegrationChats(Base):
     id = Column(String, primary_key=True, default=uuid.uuid4())
     chat_history = Column(MutableList.as_mutable(ARRAY(JSONB)), default=[])
     agent_id = Column(String, ForeignKey("smart_customer_support_chatbot.id", ondelete="CASCADE"))
+    third_party_lead_id = Column(String, nullable=True)
+    connected_platform_id = Column(String, nullable=True)
+    platform = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.datetime.now(datetime.timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=datetime.datetime.now(datetime.timezone.utc))
     

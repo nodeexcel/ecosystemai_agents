@@ -8,9 +8,11 @@ from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.models.get_db import get_db
-from app.models.model import User
+from app.models.model import User, AgentIntegrationTrack
 from app.models.appointment_setter import (AppointmentSetter, AppointmentAgentLeads,
                                            LeadAnalytics)
+from app.models.customer_support import (CustomerSupportIntegrationChats, SmartCustomerSupportAgent,
+                                         SmartAgentIntegration)
 from app.models.social_media_integrations import Whatsapp
 from app.schemas.social_media_integration import (FacebookCallback,
                                                 InstagramMessageAlert)
@@ -19,7 +21,9 @@ from app.utils.whatsapp import (generate_short_lived_access_token, long_lived_ac
                                 invalid_whatsapp_send_messages)
 from app.utils.user_auth import get_current_user
 from app.prompts.appointment_setter import appointment_setter_prompt
+from app.prompts.customer_support import sync_smartbot
 from app.ai_agents.appointment_setter import initialise_agent, message_reply_by_agent
+from app.ai_agents.customer_support import sync_initialise_agent, sync_message_reply_by_agent
 from app.utils.knowledge_base import fetch_text
 
 router = APIRouter(tags=["whatsapp"])
@@ -57,12 +61,11 @@ def facebook_callback_url(request: FacebookCallback = Depends(), db: Session = D
     response, status = long_lived_access_token(short_lived_access_token)
     
     access_token = response.get('access_token')
-    expiry_time = response.get('expires_in')
     
     if status != 200:
         return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
     
-    time_delta = datetime.timedelta(seconds=expiry_time)
+    time_delta = datetime.timedelta(seconds=36000)
     
     expiry_time = datetime.datetime.now(datetime.timezone.utc) + time_delta
     
@@ -114,59 +117,99 @@ def whatsapp_message_webhook(request: InstagramMessageAlert, db: Session = Depen
         response = image_to_text(encoded_image)
     else:
         invalid_whatsapp_send_messages(access_token, phone_id, lead_id)
+    
+    connected_agent = db.query(AgentIntegrationTrack).filter_by(platform_id=phone_id).first()
+    
+    if connected_agent.agent_type == "appointment_setter":
         
-    agent = db.query(AppointmentSetter).filter_by(platform_unique_id=phone_id).first()
-    
-    if not agent:
-        return JSONResponse(content={'error': 'Not authorized to talk this agent'}, status_code=404)
-    
-    lead = db.query(AppointmentAgentLeads).filter_by(lead_id=lead_id).first()
-    
-    if not lead:
-        lead = AppointmentAgentLeads(lead_id=lead_id)
-        db.add(lead)
-        db.commit()
-        db.refresh(lead)
-    
-    agent_id = agent.id
-    lead_chat = db.query(LeadAnalytics).filter_by(lead_id=lead.id, agent_id=agent_id).first()
-    chat_history = {}
-    chat_history['user'] = text
-    if not lead_chat:
-        thread_id = uuid.uuid4()
-        lead_chat = LeadAnalytics(lead_id=lead.id, agent_id=agent_id, thread_id=thread_id, platform_unique_id=whatsapp_number.whatsapp_phone_id)
-        db.add(lead_chat)
+        agent = db.query(AppointmentSetter).filter_by(platform_unique_id=phone_id).first()
+        
+        if not agent:
+            return JSONResponse(content={'error': 'Not authorized to talk this agent'}, status_code=404)
+        
+        lead = db.query(AppointmentAgentLeads).filter_by(lead_id=lead_id).first()
+        
+        if not lead:
+            lead = AppointmentAgentLeads(lead_id=lead_id)
+            db.add(lead)
+            db.commit()
+            db.refresh(lead)
+        
+        agent_id = agent.id
+        lead_chat = db.query(LeadAnalytics).filter_by(lead_id=lead.id, agent_id=agent_id).first()
+        chat_history = {}
+        chat_history['user'] = text
+        if not lead_chat:
+            thread_id = uuid.uuid4()
+            lead_chat = LeadAnalytics(lead_id=lead.id, agent_id=agent_id, thread_id=thread_id, platform_unique_id=whatsapp_number.whatsapp_phone_id)
+            db.add(lead_chat)
+            db.commit()
+            
+        if lead_chat:
+            thread_id = lead_chat.thread_id
+            db.commit()
+        chat = lead_chat.chat_history
+        chat.append(chat_history)
+        lead_chat.chat_history = chat
         db.commit()
         
-    if lead_chat:
-        thread_id = lead_chat.thread_id
+        if lead_chat.agent_is_enabled == False:
+            return JSONResponse({"sucess": ""}, status_code=200)
+        
+        knowledge_base = fetch_text(text, agent.user_id)
+        prompt = appointment_setter_prompt(agent, knowledge_base)
+        appointment_agent = initialise_agent(prompt)
+        ai_message = message_reply_by_agent(appointment_agent, text, thread_id)
+        
+        response = ai_message.get('response')
+        chat_history = {}
+        chat_history['agent'] = response
+        chat = lead_chat.chat_history
+        lead_chat.status = ai_message.get('lead_qualification_status')
+        chat.append(chat_history)
+        lead_chat.chat_history = chat
+        lead_chat.updated_at = datetime.date.today()
         db.commit()
-    chat = lead_chat.chat_history
-    chat.append(chat_history)
-    lead_chat.chat_history = chat
-    db.commit()
-    
-    if lead_chat.agent_is_enabled == False:
+
+        access_token = whatsapp_number.access_token
+        whatsapp_send_messages(access_token, phone_id, lead_id, response)
         return JSONResponse({"sucess": ""}, status_code=200)
     
-    knowledge_base = fetch_text(text, agent.user_id)
-    prompt = appointment_setter_prompt(agent, knowledge_base)
-    appointment_agent = initialise_agent(prompt)
-    ai_message = message_reply_by_agent(appointment_agent, text, thread_id)
-    
-    response = ai_message.get('response')
-    chat_history = {}
-    chat_history['agent'] = response
-    chat = lead_chat.chat_history
-    lead_chat.status = ai_message.get('lead_qualification_status')
-    chat.append(chat_history)
-    lead_chat.chat_history = chat
-    lead_chat.updated_at = datetime.date.today()
-    db.commit()
-
-    access_token = whatsapp_number.access_token
-    whatsapp_send_messages(access_token, phone_id, lead_id, response)
-    return JSONResponse({"sucess": ""}, status_code=200)
+    if connected_agent.agent_type == "customer_support":
+        
+        chat = db.query(CustomerSupportIntegrationChats).filter_by(connected_platform_id=phone_id,
+                                                                   third_party_lead_id=lead_id).first()
+        bot = db.query(SmartCustomerSupportAgent).filter_by(id=connected_agent.agent_id).first()
+        
+        if bot:
+            if not chat:
+                prompt = sync_smartbot(bot)
+                agent = sync_initialise_agent(prompt)
+                id = str(uuid.uuid4())
+                ai_response = sync_message_reply_by_agent(agent, text, id)
+                chat_list = []
+                chat_history = {}
+                chat_history["user"] = {"message": text, "time": str(datetime.datetime.now(datetime.timezone.utc))}
+                chat_history["ai"] = {"response": ai_response, "time": str(datetime.datetime.now(datetime.timezone.utc))}   
+                chat_list.append(chat_history)
+                customer_support_integration = CustomerSupportIntegrationChats(id=id, chat_history=chat_list, agent_id=connected_agent.agent_id,
+                                                                            third_party_lead_id=lead_id, connected_platform_id=phone_id,
+                                                                            platform="whatsapp")
+                db.add(customer_support_integration)
+                db.commit()
+            
+            if chat:
+                prompt = sync_smartbot(bot)
+                agent = sync_initialise_agent(prompt)
+                ai_response = sync_message_reply_by_agent(agent, text, chat.id)
+                chat_history = {}
+                chat_history["user"] = {"message": text, "time": str(datetime.datetime.now(datetime.timezone.utc))}
+                chat_history["ai"] = {"response": ai_response, "time": str(datetime.datetime.now(datetime.timezone.utc))}           
+                chat_list = chat.chat_history
+                chat_list.append(chat_history)
+                chat.chat_history = chat_list
+                db.commit()
+            whatsapp_send_messages(access_token, phone_id, lead_id, ai_response)
 
 
 @router.get("/get-whatsapp-accounts")
@@ -190,9 +233,9 @@ def delete_connected_whatsapp_accounts(whatsapp_id, db: Session = Depends(get_db
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
-    agent = db.query(AppointmentSetter).filter_by(platform_unique_id=whatsapp_id).first()
-    if agent:
-        return JSONResponse(content={"success": f"""The id is linked with {agent.agent_name}.
+    connected_agent = db.query(AgentIntegrationTrack).filter_by(platform_id=whatsapp_id).first()
+    if connected_agent:
+        return JSONResponse(content={"success": f"""The id is linked with an agent.
                                      Either delete agent or relink with another account."""}, status_code=400)
 
     account = db.query(Whatsapp).filter_by(whatsapp_phone_id=whatsapp_id, user_id=user_id).first()
@@ -202,16 +245,4 @@ def delete_connected_whatsapp_accounts(whatsapp_id, db: Session = Depends(get_db
     db.commit()
     return JSONResponse(content={"success": "account deleted successfully"}, status_code=200)
 
-@router.get("/test-redis")
-def test_redis_connection():
-    redis_url = os.getenv("REDIS_BROKER_URL")
-    try:
-        r = redis.Redis.from_url(redis_url, socket_connect_timeout=3)
-        pong = r.ping()
-        if pong:
-            return {"status": "success", "message": "PONG"}
-        else:
-            return {"status": "error", "message": "No PONG received"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
 

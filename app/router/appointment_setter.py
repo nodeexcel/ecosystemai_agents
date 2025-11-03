@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 
 from sqlalchemy.orm import Session
 
-from app.models.model import (User, Team, TeamMember)
+from app.models.model import (User, Team, TeamMember, AgentIntegrationTrack)
 from app.models.appointment_setter import AppointmentSetter, AppointmentAgentLeads, LeadAnalytics
 from app.models.get_db import get_db 
 from app.models.social_media_integrations import Instagram, Whatsapp
@@ -43,7 +43,7 @@ def create_appointment_setter_agent(payload: AppointmentSetterSchema, db: Sessio
     if trigger_platform != payload.sequence.channel:
         return JSONResponse(content={'error': _("Invalid data provided")}, status_code=422)
     
-    connected_account = db.query(AppointmentSetter).filter_by(platform_unique_id=payload.platform_unique_id).first()
+    connected_account = db.query(AgentIntegrationTrack).filter_by(platform_id=payload.platform_unique_id).first()
     if connected_account:
         return JSONResponse(content={'error': _("This account is already connected to a agent.")}, status_code=400)
     
@@ -51,7 +51,11 @@ def create_appointment_setter_agent(payload: AppointmentSetterSchema, db: Sessio
     db.add(appointment_setter)
     db.commit()
     db.refresh(appointment_setter)
-    id = appointment_setter.id
+    
+    new_connect = AgentIntegrationTrack(agent_type="appointment_setter", platform_id=payload.platform_unique_id,
+                                        integration_platform=payload.sequence.channel)
+    db.add(new_connect)
+    db.commit()
     return JSONResponse(content={'success': _(f"Appointment agent created successfullly.")}, status_code=200)
 
 @router.get("/appointment-setter-agents")
@@ -165,17 +169,23 @@ def updating_appointment_agent(agent_id, payload: UpdateAppointmentSetterSchema,
     if trigger_platform != payload.sequence.channel:
         return JSONResponse(content={'error': _("Invalid data provided")}, status_code=422)
     
-    connected_account = db.query(AppointmentSetter).filter_by(platform_unique_id=payload.platform_unique_id).first()
-    if connected_account and connected_account.platform_unique_id != payload.platform_unique_id:
-        return JSONResponse(content={'error': _("This account is already connected to a agent.")}, status_code=400)
-    
     agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
+    
+    connected_account = db.query(AgentIntegrationTrack).filter_by(platform_id=payload.platform_unique_id).first()
+    if connected_account and agent.platform_unique_id != payload.platform_unique_id:
+        return JSONResponse(content={'error': _("This account is already connected to a agent.")}, status_code=400)
     
     if agent:
         appointment_setter = payload.model_dump(exclude_unset=True)
         for key, value in appointment_setter.items():
             setattr(agent, key, value)
         db.commit()
+        
+        if not connected_account:
+            new_connect = AgentIntegrationTrack(agent_type="appointment_setter", platform_id=payload.platform_unique_id,
+                                            integration_platform=payload.sequence.channel)
+            db.add(new_connect)
+            db.commit()
         return JSONResponse(content={'success': _('Agent updated successfully')}, status_code=200)
     return JSONResponse(content={'error': _('Not authorized to update this agent')}, status_code=404)
 
@@ -189,8 +199,11 @@ def deleting_appointment_agent(agent_id,  db: Session = Depends(get_db), user_id
     
     agent = db.query(AppointmentSetter).filter_by(id=agent_id, user_id=user_id).first()
     
+    connected_account = db.query(AgentIntegrationTrack).filter_by(platform_id=agent.platform_unique_id).first()
+    
     if agent:
         db.delete(agent)
+        db.delete(connected_account)
         db.commit()
         return JSONResponse(content={'success': _('Agent deleted successfully')}, status_code=200)
     return JSONResponse(content={'error': _('Not authorized to delete this agent')}, status_code=404)
