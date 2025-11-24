@@ -31,7 +31,10 @@ class SmartCustomerSupportAgent(Base):
     transfer_case = Column(JSONB, nullable=True)
     reference_file = Column(String, nullable=True)
     reference_text = Column(String, nullable=True)
+    use_ai_brain = Column(Boolean, default=False)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    created_at = Column(DateTime(timezone=True), default=datetime.datetime.now(datetime.timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=datetime.datetime.now(datetime.timezone.utc))
     
 class SmartAgentIntegration(Base):
     

@@ -1,3 +1,4 @@
+import time as timee
 import json, os, uuid, datetime, requests
 from datetime import date, time, timezone
 from io import BytesIO
@@ -285,7 +286,7 @@ def create_content(payload: ContentCreateSchema, db: Session = Depends(get_db),
                              headers={'authorization':os.getenv('CONTENT_GENERATE_API_KEY')})
     
     if response.status_code != 200:
-        time.sleep(30)
+        timee.sleep(30)
         response = requests.post(os.getenv('CONTENT_GENERATE_API_URL'), data=data,
                                  headers={'authorization': os.getenv('CONTENT_GENERATE_API_KEY')})
         if response.status_code == 400:
@@ -483,7 +484,7 @@ def update_youtube_script(post_id: int, payload: ContentUpdateSchema, db: Sessio
 
 
 @router.post("/schedule-content/draft")
-def schedule_content(text: str = Form(...),
+def draft_content(text: str = Form(...),
                      document: Optional[UploadFile] = File(None),
                      platform: str = Form(...),
                      media_type: str = Form(...),
@@ -535,7 +536,7 @@ def schedule_content(text: str = Form(...),
     return JSONResponse(content={'success': "Content saved as draft"}, status_code=201)
 
 @router.post("/schedule-content/publish")
-def schedule_content(text: str = Form(...),
+def publish_content(text: str = Form(...),
                      document: Optional[UploadFile] = File(None),
                      platform: str = Form(...),
                      media_type: str = Form(...),
@@ -691,4 +692,168 @@ def get_scheduled_content(db: Session = Depends(get_db), user_id: str = Depends(
         content_detail['published_time'] = str(content.published_time)
         response.append(content_detail)
     return JSONResponse(content={"content_details": response}, status_code=200)        
+    
+@router.get("/content-details/{content_id}")
+def content_details(content_id,
+                    db: Session = Depends(get_db), user_id: str = Depends(get_current_user),
+                   _ = Depends(get_translator_dependency)):
+    
+    content = db.query(ScheduledContent).filter_by(id=content_id, user_id=user_id).first()
+    
+    if not content:
+        return JSONResponse(content={"error": "No content found for the detail"}, status_code=404)
+    
+    if content.platform == "instagram":
+        connected_agent = db.query(Instagram).filter_by(instagram_user_id=content.platform_unique_id).first()
+        name = connected_agent.username
+        
+    if content.platform == "linkedin":
+        connected_agent = db.query(LinkedIn).filter_by(linkedin_id=content.platform_unique_id).first()
+        name = connected_agent.name
+        
+    content_info = {}
+    
+    content_info['id'] = content.id
+    content_info['media_type'] = content.media_type
+    content_info['platform'] = content.platform
+    media_url = os.getenv("S3_BASE_URL") + f"/{content.document}"
+    content_info['document'] = media_url
+    content_info['text'] = content.text
+    content_info['platform_username'] = name 
+    content_info['platform_unique_id'] = content.platform_unique_id
+    content_info['scheduled_type'] = content.scheduled_type
+    content_info['scheduled_date'] = str(content.scheduled_date)
+    content_info['scheduled_time'] = str(content.scheduled_time)
+    content_info['published_time'] = str(content.published_time)
+
+    return JSONResponse(content={"success": content_info}, status_code=200)
+
+@router.delete("/delete-content/{content_id}")
+def delete_content(content_id,
+                    db: Session = Depends(get_db), user_id: str = Depends(get_current_user),
+                   _ = Depends(get_translator_dependency)):
+    
+    content = db.query(ScheduledContent).filter_by(id=content_id, user_id=user_id).first()
+    
+    if not content:
+        return JSONResponse(content={"error": "No content found for the detail"}, status_code=404)
+    
+    db.delete(content)
+    db.commit()
+    
+    return JSONResponse(content={"success": "content deleted successfully"}, status_code=200)
+
+@router.post("/publish-now/{content_id}")
+def publish_now(content_id,
+                    db: Session = Depends(get_db), user_id: str = Depends(get_current_user),
+                   _ = Depends(get_translator_dependency)):
+
+    content = db.query(ScheduledContent).filter_by(id=content_id, user_id=user_id).first()
+    
+    if not content:
+        return JSONResponse(content={"error": "No content found for the detail"}, status_code=404)
+        
+    if content.platform == "instagram":
+        
+        instagram = db.query(Instagram).filter_by(instagram_user_id=content.platform_unique_id).first()
+        
+        if not instagram:
+            return JSONResponse(content={'error': 'instagram account not connected'}, status_code=400)
+        
+        media_url = os.getenv("S3_BASE_URL") + f"/{content.document}"
+        
+        media_id = publish_content_instagram(instagram.access_token, instagram.refresh_token,
+                                             content.platform_unique_id, content.media_type,
+                                             media_url, content.text)
+    
+    if content.platform == "linkedin":
+        
+        linkedin = db.query(LinkedIn).filter_by(linkedin_id=content.platform_unique_id).first()
+        
+        if not linkedin:
+            return JSONResponse(content={'error': 'linkedin account not connected'}, status_code=400)
+        
+        if content.document is not None:
+            response, status_code = publish_content_linkedin(linkedin.access_token, linkedin.linkedin_id, content.text, content.media_type, content.document)
+        else:
+            response, status_code = publish_content_linkedin(linkedin.access_token, linkedin.linkedin_id, content.text, content.media_type)
+        
+        if status_code != 201:
+            return JSONResponse(content={"error": "could not publish"}, status_code=400)
+
+        media_id = response.get("x-restli-id")
+        
+    published_time = datetime.datetime.now(timezone.utc)
+    content.scheduled_type = "published"
+    content.published_time = published_time
+    db.commit()
+    
+    return JSONResponse(content={'success': "Content published"}, status_code=201)
+
+@router.put("/edit-content-scheduled/{content_id}")
+def edit_content_schedule(content_id,
+                          text: str = Form(None),
+                     document: Optional[UploadFile] = File(None),
+                     platform: str = Form(None),
+                     platform_unique_id: str = Form(None),
+                     media_type: str = Form(None),
+                     scheduled_date: date = Form(None),
+                     scheduled_time: time = Form(None),
+                     db: Session = Depends(get_db),
+                     user_id: str = Depends(get_current_user)):
+    
+    content = db.query(ScheduledContent).filter_by(id=content_id, user_id=user_id).first()
+    
+    if not content:
+        return JSONResponse(content={"error": "No content found for the detail"}, status_code=404)
+    
+    
+    user = db.query(User).filter_by(id=user_id).first()
+    
+    if platform not in ('instagram', 'linkedin', 'X'):
+        return JSONResponse(content={'error': "Platform not supported"}, status_code=400)
+    
+    if not platform_unique_id:
+        return JSONResponse(content={'error': "account not selected"}, status_code=400)
+    
+    if platform == "instagram":
+        if not document and content.document is None:
+            return JSONResponse(content={'error': "image or video is mandatory with instagram"}, status_code=400)
+        
+        instagram = db.query(Instagram).filter_by(instagram_user_id=platform_unique_id).first()
+        
+        if not instagram:
+            return JSONResponse(content={'error': 'instagram account not connected'}, status_code=404)
+    
+    if platform == "linkedin":
+        linkedin = db.query(LinkedIn).filter_by(linkedin_id=platform_unique_id).first()
+        
+        if not linkedin:
+            return JSONResponse(content={'error': 'linkedin account not connected'}, status_code=400)
+    
+    try:
+        file_path = ""
+        if document:
+            upload_args = get_upload_args(document.filename)
+            file_path = f"content-document/{user.email}/{uuid.uuid4()}_{document.filename}"
+            aws_client.upload_fileobj(Fileobj=document.file, 
+                            Bucket=os.getenv('BUCKET_NAME'), Key=file_path,
+                            ExtraArgs=upload_args)
+    except Exception as e:
+            print(e)
+            return JSONResponse(content={"error": "could not upload document"}, status_code=500)
+    
+    if document is not None:
+        content.document = file_path
+        
+    content.text = text
+    content.platform = platform
+    content.platform_unique_id = platform_unique_id
+    content.media_type = media_type
+    content.scheduled_date = scheduled_date
+    content.scheduled_time = scheduled_time
+    db.commit()
+    
+    return JSONResponse(content={'success': "Content is scheduled"}, status_code=200)
+    
     

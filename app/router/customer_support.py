@@ -428,9 +428,11 @@ def get_smartbots(
     response = []
     for bot in bots:
         bot_info = {}
+        chat_count = db.query(CustomerSupportIntegrationChats).filter_by(agent_id=bot.id).count()
         bot_info["id"] = bot.id
         bot_info["bot_name"] = bot.bot_name
-        bot_info["chats"] = 10
+        bot_info["chats"] = chat_count
+        bot_info['created_at'] = str(bot.created_at)
         response.append(bot_info)
     
     return JSONResponse(content={"success": response}, status_code=200)
@@ -631,3 +633,26 @@ def delete_smartbot_chat(chat_id: str,
     db.commit()
     
     return JSONResponse(content={'success': "chat deleted successfully"}, status_code=200)
+
+@router.get("/customer-support-connected-platforms/{agent_id}")
+def customer_support_connected_platform(agent_id: str,
+                        db: Session = Depends(get_db),
+                        user_id: str = Depends(get_current_user),
+                        _ = Depends(get_translator_dependency)):
+    
+    connected_platforms = db.query(AgentIntegrationTrack).filter_by(agent_id=agent_id).all()
+    
+    if not connected_platforms:
+        return JSONResponse(content={"platforms": []}, status_code=200)
+    
+    response = []
+    
+    for connected_platform in connected_platforms:
+        connected_platfrom_info = {}
+        
+        connected_platfrom_info['integration_platform'] = connected_platform.integration_platform
+        connected_platfrom_info['platform_id'] = connected_platform.platform_id
+        response.append(connected_platfrom_info)
+     
+    return JSONResponse(content={'platforms': response}, status_code=200)
+        

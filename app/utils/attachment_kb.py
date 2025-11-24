@@ -5,9 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import UploadFile, status
 from fastapi.exceptions import HTTPException
 from langchain_core.documents import Document
-from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
-from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from PyPDF2 import PdfReader
 
@@ -113,17 +111,6 @@ def upsert_to_pinecone_for_pdf(user_id, documents, embeddings, metadata: dict[st
     
     index = pinecone_db.Index(name=os.getenv('PINECONEDB'))
     user_id = user_id
-    
-    # metadata.update({"text": documents[i].page_content})
-    
-    # vectors = [
-    #     {
-    #         "id": str(uuid.uuid4()),
-    #         "values": embeddings[i],
-    #         "metadata": {"text": documents[i].page_content}
-    #     }
-    #     for i in range(len(documents))
-    # ]
     
     vectors = []
     for i in range(len(documents)):

@@ -8,6 +8,7 @@ class CreateSmartBotSchema(BaseModel):
     prompt: str
     transfer_case: dict = {}
     reference_text: str
+    use_ai_brain: bool = False
     
 class CreateWebsiteLinkSchema(BaseModel):
     
@@ -26,6 +27,7 @@ class UpdateSmartBotSchema(BaseModel):
     prompt: str = None
     transfer_case: dict = None
     reference_text: str = None
+    use_ai_brain: bool = False
     
 class UpdateWebsiteLinkSchema(BaseModel):
     

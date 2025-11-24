@@ -54,6 +54,8 @@ class User(Base):
     subscriptionUpdatedAt = Column(DateTime, nullable=True)
     language = Column(String, default="english")
     created_at = Column(DateTime, default=datetime.datetime.now())
+    passwordUpdatedAt = Column(DateTime, default=datetime.datetime.now())
+    theme =  Column(String)
     
 class Team(Base):
     __tablename__ = "team"

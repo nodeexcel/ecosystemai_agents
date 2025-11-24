@@ -49,3 +49,15 @@ class LinkedIn(Base):
     access_token = Column(String, nullable=False)
     refresh_token = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"))
+    
+class Tiktok(Base):
+    __tablename__ = "tiktok_connection_details"
+    
+    tiktok_id = Column(String, primary_key=True)
+    creator_username = Column(String, nullable=True)
+    creator_nickname = Column(String, nullable=True)
+    access_token = Column(String, nullable=False)
+    refresh_token = Column(String, nullable=True)
+    access_token_expiry_time = Column(DateTime, nullable=True)
+    refresh_token_expiry_time = Column(DateTime, nullable=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"))

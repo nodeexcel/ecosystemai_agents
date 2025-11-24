@@ -72,7 +72,7 @@ def instagram_callback_url(request: InstagramCallback = Depends(), db: Session =
     instagram_user_id = user_response['user_id']
     instagram_id = user_response['id']
     username = user_response['username']
-    name = user_response['name']
+    name = user_response.get('name')
     
     instagram_user = db.query(Instagram).filter_by(instagram_user_id=instagram_user_id).first()
     

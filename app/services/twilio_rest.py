@@ -22,7 +22,7 @@ def incoming_buy_number():
     for available_number in available_numbers:
         number = available_number.phone_number
         purchased_number = twilio_client.incoming_phone_numbers.create(phone_number=number,
-                                                                       voice_url=f"https://{domain}/incoming",
+                                                                       voice_url=f"https://{domain}/incoming-call",
                                                                        status_callback=f"https://{domain}/call-status")
     return purchased_number.phone_number
 

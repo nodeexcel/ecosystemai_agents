@@ -134,10 +134,6 @@ def delete_knowledge_base(id, db: Session = Depends(get_db), user_id: str = Depe
     db.delete(knowledge_base)
     db.commit()
     return JSONResponse({"success": _("knowledge base deleted successfully")},status_code=200)
-
-
-
-
     
 @router.post("/kb-attachments")
 async def upload_attachment(
@@ -175,15 +171,6 @@ async def upload_attachment(
         
     attachment_url = os.getenv("S3_BASE_URL") + f"/{file_path}"
     
-    
-    # metadata = {
-    #     "attachment_url": attachment_content_creation.attachment_url,
-    #     "thread_id": thread_id,
-    #     "file_id": attachment_content_creation.file_id,
-    #     "filename": attachment_content_creation.filename,
-    # }
-    # process_attachment_to_pinecone(attachment, user.id, metadata)
-    
     metadata = {
         "attachment_url": attachment_url,
         "file_id": file_id,
@@ -196,12 +183,10 @@ async def upload_attachment(
     documents: list[Document] = process_attachment_to_pinecone(new_file_upload, user.id, metadata)
     chain = load_summarize_chain(llm, chain_type="map_reduce")
     summary = await chain.ainvoke(documents)
-    print("Summary: ", summary['output_text'])
     
     attachment_content_creation = KnowledgeAttachment(
         agent_name=agent_name,
         attachment_url=attachment_url,
-        # thread_id=thread_id,
         file_id=file_id, 
         filename=filename,
         file_summary=summary['output_text'],

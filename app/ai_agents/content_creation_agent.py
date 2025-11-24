@@ -22,10 +22,7 @@ async def summarize_tools(filename: str | None = None) -> str:
         
     Returns: Return the summary for given file id.
     """
-    print("\nadfasdfasdfasd\n")
     user = current_user.get()
-    print(f"Checking the current user:", user)
-    print(f"Checking the current user id:", user.id)
     
     async with get_async_db() as db:
         content_attachment: KnowledgeAttachment | None = None
