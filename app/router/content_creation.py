@@ -22,7 +22,7 @@ from app.models.content_creation_agent import (
     YoutubeScript, 
     ScheduledContent
 )
-from app.models.social_media_integrations import Instagram, LinkedIn
+from app.models.social_media_integrations import Instagram, LinkedIn, Tiktok
 from app.schemas.content_creation import (NameUpdate, PredisCheck, ContentCreateSchema,
                                           LinkedInPostSchema, ContentUpdateSchema, XPostSchema,
                                           YoutubeScriptSchema)
@@ -37,6 +37,7 @@ from app.utils.chatbots import summarizing_initial_chat
 from app.utils.current_user import current_user
 from app.utils.instagram import publish_content_instagram
 from app.utils.linkedin import publish_content_linkedin
+from app.utils.tiktok import post_on_tiktok
 from app.utils.attachment_kb import process_attachment_to_pinecone
 
 router = APIRouter(tags=["content-creation-agent"])
@@ -284,11 +285,13 @@ def create_content(payload: ContentCreateSchema, db: Session = Depends(get_db),
         
     response = requests.post(os.getenv('CONTENT_GENERATE_API_URL'), data=data,
                              headers={'authorization':os.getenv('CONTENT_GENERATE_API_KEY')})
+    print(response.text)
     
     if response.status_code != 200:
         timee.sleep(30)
         response = requests.post(os.getenv('CONTENT_GENERATE_API_URL'), data=data,
                                  headers={'authorization': os.getenv('CONTENT_GENERATE_API_KEY')})
+        print(response.text)
         if response.status_code == 400:
             return JSONResponse({'error': 'There is some processing issue. Please try again later'}, status_code=500)
         
@@ -547,17 +550,17 @@ def publish_content(text: str = Form(...),
     if not user:
         return JSONResponse(content={'error': "user does not exist"}, status_code=404)
     
-    if platform not in ('instagram', 'linkedin', 'X'):
+    if platform not in ('instagram', 'linkedin', 'tiktok'):
         return JSONResponse(content={'error': "Platform not supported"}, status_code=400)
     
     if not platform_unique_id:
         return JSONResponse(content={'error': "account not selected"}, status_code=400)
     
-    if platform=="instagram":
+    if platform=="instagram" or platform=="tiktok":
         if not document:
-            return JSONResponse(content={'error': "image or video is mandatory with instagram"}, status_code=400)
+            return JSONResponse(content={'error': f"image or video is mandatory with {platform}"}, status_code=400)
         if not document.filename.endswith((".jpeg", ".png", ".mp4")):
-            return JSONResponse(content={'error': 'instagram does not support this media type'}, status_code=400)
+            return JSONResponse(content={'error': f'{platform} does not support this media type'}, status_code=400)
     
     try:
         file_path = ""
@@ -605,6 +608,16 @@ def publish_content(text: str = Form(...),
         
     published_time = datetime.datetime.now(timezone.utc)
     
+    if platform == "tiktok":
+        tiktok = db.query(Tiktok).filter_by(tiktok_id=platform_unique_id).first()
+        
+        media_id, refresh_token_response = post_on_tiktok(tiktok.access_token, tiktok.refresh_token, media_url, text)
+        
+        if refresh_token_response is not None:
+            tiktok.access_token = refresh_token_response["access_token"]
+            tiktok.refresh_token = refresh_token_response["refresh_token"]
+            db.commit()
+            
     content = ScheduledContent(text=text, document=file_path, platform=platform, platform_unique_id=platform_unique_id,
                                scheduled_type='publish', media_id=media_id, media_type=media_type,
                                published_time=published_time, user_id=user_id)
