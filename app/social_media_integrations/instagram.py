@@ -48,14 +48,14 @@ def instagram_callback_url(request: InstagramCallback = Depends(), db: Session =
     token_response, status = user_authorization(code)
         
     if status != 200:
-        return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
+        return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=303)
     
     short_lived_access_token = token_response.get("access_token")
 
     response, status = long_lived_access_token(short_lived_access_token)
     
     if status != 200:
-        return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
+        return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=303)
 
     access_token = response.get("access_token")
     expiry_time = response.get("expires_in")    
@@ -67,7 +67,7 @@ def instagram_callback_url(request: InstagramCallback = Depends(), db: Session =
     user_response, status = instagram_user_info(access_token)
     
     if status != 200:
-        return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
+        return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=303)
     
     instagram_user_id = user_response['user_id']
     instagram_id = user_response['id']
@@ -79,13 +79,13 @@ def instagram_callback_url(request: InstagramCallback = Depends(), db: Session =
     if instagram_user:
         instagram_user.access_token = access_token
         db.commit()
-        return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
+        return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=303)
     
     instagram_user = Instagram(instagram_user_id=instagram_user_id, instagram_id=instagram_id, username=username, name=name,
                             expiry_time=expiry_time, access_token=access_token, user_id=user_id)
     db.add(instagram_user)
     db.commit()
-    return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
+    return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=303)
 
 @router.post("/instagram/webhook")
 def instagram_message_webhook(request: InstagramMessageAlert, db: Session = Depends(get_db)):

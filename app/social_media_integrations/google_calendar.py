@@ -1,4 +1,4 @@
-import datetime
+import datetime, os
 from fastapi import Depends
 from fastapi.routing import APIRouter
 from fastapi.responses import Response, RedirectResponse, JSONResponse
@@ -64,9 +64,7 @@ def google_callback(code, state, db: Session = Depends(get_db)):
                                     , refresh_token=refresh_token, timezone=timezone, expiry_time=expiry_time, user_id=state)
             db.add(calendar)
             db.commit()
-    # get_freebusy_time(access_token)
-    # create_meeting(access_token)
-    return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
+    return RedirectResponse(url= f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=303)
 
 @router.get("/get-calendar-accounts")
 def get_google_calendar_accounts(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):

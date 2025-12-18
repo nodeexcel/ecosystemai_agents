@@ -326,8 +326,36 @@ def content_generation_status(content_id: str, db: Session = Depends(get_db), us
     if content.post_status == 'completed':
         return JSONResponse(content={'status': 'completed', 'message': 'content generation is completed', 'media_type': content.media_type,
                                      'media_urls': content.media_urls, 'caption': content.caption}, status_code=200)
- 
- 
+        
+
+@router.get('/get-contents')
+def get_generated_content(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
+    
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        return JSONResponse(content={'error': "user does not exist"}, status_code=404)
+    
+    contents = db.query(Content).filter_by(user_id=user_id).all()
+   
+    responses = []
+    for content in contents:
+        content_data = {}
+        content_data['id'] = content.id
+        content_data['created_at'] = str(content.created_at)
+        content_data['post_status'] = content.post_status
+        content_data['media_type'] = content.media_type
+        content_data['media_urls'] = content.media_urls
+        content_data['caption'] = content.caption
+        content_data['post_id'] = content.post_id
+        content_data['post_type'] = content.post_type
+        content_data['language'] = content.language
+        content_data['video_duration'] = content.video_duration
+        content_data['author'] = content.author
+        responses.append(content_data)
+        
+    return JSONResponse(content={"contents": responses}, status_code=200)
+
+   
 @router.post("/linkedin-post")
 def linked_post_generation(payload: LinkedInPostSchema,  db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):
     user = db.query(User).filter_by(id=user_id).first()

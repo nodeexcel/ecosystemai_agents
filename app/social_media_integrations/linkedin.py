@@ -30,14 +30,14 @@ def linkedin_callback_url(code, state, db: Session = Depends(get_db)):
     response, status_code = generate_access_token(code)
     
     if status_code != 200:
-        return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=302)
+        return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=302)
     
     access_token = response.get("access_token")
     
     response, status_code = get_user_info(access_token)
     
     if status_code != 200:
-        return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=302)
+        return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=302)
 
     linkedin_user_id =  response.get('sub')
     name = response.get('name')
@@ -48,13 +48,13 @@ def linkedin_callback_url(code, state, db: Session = Depends(get_db)):
     if linkedin_user:
         linkedin_user.access_token = access_token
         db.commit()
-        return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
+        return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=303)
     
     linkedin_user = LinkedIn(linkedin_id=linkedin_user_id, name=name, email=email, access_token=access_token, user_id=user_id)
     
     db.add(linkedin_user)
     db.commit()    
-    return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
+    return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=303)
     
 @router.get("/get-linkedin-accounts")
 def get_connected_linkedin_accounts(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):

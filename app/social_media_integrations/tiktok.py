@@ -42,7 +42,7 @@ def tiktok_callback(request: FacebookCallback = Depends(),
         tiktok_user.access_token = access_token
         tiktok_user.refresh_token = refresh_token
         db.commit()
-        return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
+        return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=303)
     
     tiktok_user = Tiktok(tiktok_id=user_token_info.get("open_id"), creator_nickname=creator_nickname, creator_username=creator_username,
                          access_token=access_token, refresh_token=refresh_token,access_token_expiry_time=access_token_expiry_time,
@@ -50,7 +50,7 @@ def tiktok_callback(request: FacebookCallback = Depends(),
     db.add(tiktok_user)
     db.commit()
     
-    return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
+    return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=303)
   
 @router.get("/get-tiktok-accounts")
 def get_connected_tiktok_accounts(db: Session = Depends(get_db), user_id: str = Depends(get_current_user)):

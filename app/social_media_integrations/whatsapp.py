@@ -54,7 +54,7 @@ def facebook_callback_url(request: FacebookCallback = Depends(), db: Session = D
     response, status = generate_short_lived_access_token(code)
     
     if status != 200:
-        return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
+        return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=303)
     
     short_lived_access_token = response.get('access_token')
     
@@ -63,7 +63,7 @@ def facebook_callback_url(request: FacebookCallback = Depends(), db: Session = D
     access_token = response.get('access_token')
     
     if status != 200:
-        return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
+        return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=303)
     
     time_delta = datetime.timedelta(seconds=36000)
     
@@ -78,13 +78,13 @@ def facebook_callback_url(request: FacebookCallback = Depends(), db: Session = D
     whatsapp_number = db.query(Whatsapp).filter_by(whatsapp_phone_id=phone_id).first()
     
     if whatsapp_number:
-        return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
+        return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=303)
     
     whatsapp_number = Whatsapp(whatsapp_business_id=whatsapp_business_id, whatsapp_phone_id=phone_id, name=name, phone_number=phone_number,
                             expiry_time=expiry_time, access_token=access_token, user_id=user_id)
     db.add(whatsapp_number)
     db.commit()
-    return RedirectResponse(url="https://www.app.ecosysteme.ai/dashboard/brain", status_code=303)
+    return RedirectResponse(url=f"{os.getenv("FRONTEND_URL")}/dashboard/brain?tab=integration", status_code=303)
 
 @router.post("/whatsapp/webhook")
 def whatsapp_message_webhook(request: InstagramMessageAlert, db: Session = Depends(get_db)):
