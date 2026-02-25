@@ -21,7 +21,7 @@ class AppointmentSetterSchema(BaseModel):
     prompt: str
     whatsapp_number: str
     business_description: str = Field(min_length=50)
-    your_business_offer: str =  Field(min_length=50)
+    your_business_offer: str
     platform_unique_id: str = Field(min_length=5)
     qualification_questions: list[str] = []
     sequence: Sequence
@@ -42,7 +42,7 @@ class UpdateAppointmentSetterSchema(BaseModel):
     age: Optional[int] = None
     prompt: Optional[str] = None
     business_description: Optional[str] = Field(default=None, min_length=50)
-    your_business_offer: Optional[str] =  Field(default=None, min_length=50)
+    your_business_offer: Optional[str] =  Field(default=None)
     qualification_questions: Optional[list[str]] = None
     sequence: Optional[Sequence] = None
     platform_unique_id: str = None
